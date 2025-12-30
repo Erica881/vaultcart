@@ -1,0 +1,48 @@
+import { NextRequest, NextResponse } from "next/server";
+import sql from "mssql";
+import { executeQuery } from "@/lib/db";
+
+export async function POST(request: NextRequest) {
+  try {
+    const { email, password, role } = await request.json(); // role: 'customer' or 'seller'
+
+    // Choose the correct stored procedure based on the login type
+    const procedure =
+      role === "seller" ? "Membership.LoginSeller" : "Membership.LoginCustomer";
+
+    const params = [
+      { name: "Email", type: sql.NVarChar(255), value: email },
+      { name: "InputPassword", type: sql.NVarChar(255), value: password },
+    ];
+
+    // Execute the stored procedure defined in your SQL script
+    const result = await executeQuery(
+      `EXEC ${procedure} @Email, @InputPassword`,
+      params
+    );
+    const loginData = result.recordset[0];
+
+    if (loginData && loginData.Status === "SUCCESS") {
+      return NextResponse.json(
+        {
+          success: true,
+          token: loginData.SessionToken, // This GUID is used for RLS
+          userId: loginData.CustomerID || loginData.SellerID,
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store, max-age=0",
+            // "Content-Type": "application/json",
+          },
+        }
+      );
+    } else {
+      return NextResponse.json(
+        { success: false, message: "Invalid credentials" },
+        { status: 401 }
+      );
+    }
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
