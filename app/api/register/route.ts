@@ -1,44 +1,158 @@
+// import { NextRequest, NextResponse } from "next/server";
+// import sql from "mssql";
+// import { executeQuery, executeProcedure } from "@/lib/db";
+
+// export async function POST(request: NextRequest) {
+//   try {
+//     const { name, email, password, phone, role, address, cardNumber } =
+//       await request.json();
+
+//     let procedureName = "";
+//     let params: any[] = [];
+//     let query = "";
+
+//     if (role === "seller") {
+//       // SELLER LOGIC: Only 4 Parameters (Name, Email, CardNumber, PlainPassword)
+//       procedureName = "Membership.RegisterSeller";
+//       params = [
+//         { name: "Name", type: sql.NVarChar(100), value: name },
+//         { name: "Email", type: sql.NVarChar(255), value: email },
+//         {
+//           name: "CardNumber",
+//           type: sql.NVarChar(20),
+//           value: cardNumber,
+//         }, // For Always Encrypted column
+//         { name: "PlainPassword", type: sql.NVarChar(100), value: password },
+//       ];
+//       query = `EXEC ${procedureName} @Name, @Email, @CardNumber, @PlainPassword`;
+//     } else {
+//       // CUSTOMER LOGIC: 5 Parameters (Name, Email, Phone, Address, PlainPassword)
+//       procedureName = "Membership.RegisterCustomer";
+//       params = [
+//         { name: "Name", type: sql.NVarChar(100), value: name },
+//         { name: "Email", type: sql.NVarChar(255), value: email },
+//         { name: "Phone", type: sql.NVarChar(20), value: phone || null },
+//         {
+//           name: "Address",
+//           type: sql.NVarChar(sql.MAX),
+//           value: address || "No Address",
+//         },
+//         { name: "PlainPassword", type: sql.NVarChar(100), value: password },
+//       ];
+//       query = `EXEC ${procedureName} @Name, @Email, @Phone, @Address, @PlainPassword`;
+//     }
+
+//     // Call the database
+//     // await executeQuery(query, params);
+//     await executeProcedure(procedureName, params);
+
+//     return NextResponse.json({
+//       success: true,
+//       message: `${role} registered successfully in the Vault.`,
+//     });
+//   } catch (error: any) {
+//     console.error("Registration Error:", error.message);
+//     return NextResponse.json({ error: error.message }, { status: 500 });
+//   }
+// }
+
 import { NextRequest, NextResponse } from "next/server";
 import sql from "mssql";
-import { executeQuery } from "@/lib/db";
+
+import { executeProcedure, executeBatch, executeQuery } from "@/lib/db"; // Only need executeProcedure now
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, password, phone, role, address } =
+    const { name, email, password, phone, role, address, cardNumber } =
       await request.json();
 
-    // Differentiate the Procedure based on the role
-    const procedureName =
-      role === "seller"
-        ? "Membership.RegisterSeller"
-        : "Membership.RegisterCustomer";
+    let procedureName = "";
+    let result;
 
-    // IMPORTANT: Parameter names MUST match the @Variables in your SQL Procedure
-    const params = [
-      { name: "Name", type: sql.NVarChar(100), value: name },
-      { name: "Email", type: sql.NVarChar(255), value: email },
-      { name: "Phone", type: sql.NVarChar(20), value: phone || null },
+    if (role === "seller") {
+      procedureName = "Membership.RegisterSeller";
+
+      // Use EXECUTE AS to ensure the AppUser context is active for the session
+      // const query = `
+      //   EXECUTE AS USER = 'AppUser';
+      //   EXEC ${procedureName}
+      //     @Name = @Name,
+      //     @Email = @Email,
+      //     @CardNumber = @CardNumber,
+      //     @PlainPassword = @PlainPassword;
+      //   REVERT;
+      // `;
+
+      const query = `EXEC ${procedureName} @Name, @Email, @CardNumber, @PlainPassword`;
+
+      const params = [
+        { name: "Name", type: sql.NVarChar(100), value: name },
+        { name: "Email", type: sql.NVarChar(255), value: email },
+        { name: "CardNumber", type: sql.NVarChar(20), value: cardNumber },
+        { name: "PlainPassword", type: sql.NVarChar(100), value: password },
+      ];
+
+      result = await executeQuery(query, params);
+    } else {
+      // CUSTOMER LOGIC
+      procedureName = "Membership.RegisterCustomer";
+      const query = `
+        EXEC ${procedureName} 
+          @Name = @Name, 
+          @Email = @Email, 
+          @Phone = @Phone, 
+          @Address = @Address, 
+          @PlainPassword = @PlainPassword;
+      `;
+      const params = [
+        { name: "Name", type: sql.NVarChar(100), value: name },
+        { name: "Email", type: sql.NVarChar(255), value: email },
+        { name: "Phone", type: sql.NVarChar(20), value: phone || null },
+        {
+          name: "Address",
+          type: sql.NVarChar(sql.MAX),
+          value: address || "No Address",
+        },
+        { name: "PlainPassword", type: sql.NVarChar(100), value: password },
+      ];
+      // await executeQuery(
+      //   `EXEC ${procedureName} @Name, @Email, @Phone, @Address, @PlainPassword`,
+      //   params
+      // );
+      result = await executeQuery(query, params);
+    }
+    const dbData = result.recordset?.[0];
+
+    if (dbData?.Status === "SUCCESS") {
+      return NextResponse.json(
+        {
+          success: true,
+          message: `${role} registered successfully.`,
+          id: dbData.SellerID || dbData.CustomerID, // Return the ID generated by the DB
+        },
+        { status: 201 }
+      );
+    }
+
+    // If the DB returned something other than SUCCESS
+    return NextResponse.json(
       {
-        name: "Address",
-        type: sql.NVarChar(sql.MAX),
-        value: address || "No Address Provided",
+        success: false,
+        error: "Database registration failed.",
       },
-      { name: "PlainPassword", type: sql.NVarChar(100), value: password },
-    ];
-
-    // Call the procedure.
-    // The Database handles hashing/salting internally as per your T-SQL logic.
-    await executeQuery(
-      `EXEC ${procedureName} @Name, @Email, @Phone, @Address, @PlainPassword`,
-      params
+      { status: 400 }
     );
-
-    return NextResponse.json({
-      success: true,
-      message: `${role} registered successfully`,
-    });
+    // const query = `EXEC ${procedureName} @Name, @Email, @Phone, @Address, @PlainPassword`;
   } catch (error: any) {
     console.error("Registration Error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Improved error feedback for debugging metadata
+    return NextResponse.json(
+      {
+        error:
+          error.message || "An unexpected error occurred during registration.",
+      },
+      { status: 500 }
+    );
   }
 }

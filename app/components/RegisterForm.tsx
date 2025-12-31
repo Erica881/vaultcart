@@ -8,14 +8,15 @@ export default function RegisterForm() {
     password: "",
     phone: "",
     address: "",
-    role: "customer", // Default role
+    cardNumber: "", // New field for Sellers
+    role: "customer",
   });
 
   const [status, setStatus] = useState("");
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStatus("Processing...");
+    setStatus("Processing Identity...");
 
     try {
       const res = await fetch("/api/register", {
@@ -26,84 +27,116 @@ export default function RegisterForm() {
 
       const data = await res.json();
       if (data.success) {
-        setStatus(`Success! ${formData.role} account created.`);
+        setStatus(
+          `✅ ${formData.role.toUpperCase()} initialized successfully.`
+        );
       } else {
-        setStatus("Error: " + data.error);
+        setStatus("❌ Error: " + data.error);
       }
     } catch (err) {
-      setStatus("Network Error.");
+      setStatus("❌ Network Error.");
     }
   };
 
   return (
-    <div
-      style={{
-        maxWidth: "400px",
-        margin: "auto",
-        padding: "20px",
-        border: "1px solid #ccc",
-      }}
-    >
-      <h2>VaultCart Registration</h2>
-      <form
-        onSubmit={handleRegister}
-        style={{ display: "flex", flexDirection: "column", gap: "10px" }}
-      >
-        {/* ROLE SELECTION: Crucial for calling correct procedure */}
-        <label>I am a:</label>
-        <select
-          value={formData.role}
-          onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-          style={{ padding: "8px" }}
-        >
-          <option value="customer">Customer (Buyer)</option>
-          <option value="seller">Seller (Vendor)</option>
-        </select>
+    <div className="w-full max-w-md bg-slate-800/50 p-1 border border-slate-700 rounded-xl">
+      <form onSubmit={handleRegister} className="flex flex-col gap-4 p-4">
+        {/* ROLE SELECTION */}
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-slate-500 uppercase font-bold">
+            Identity Type
+          </label>
+          <select
+            value={formData.role}
+            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+            className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+          >
+            <option value="customer">Customer (Buyer)</option>
+            <option value="seller">Seller (Vendor)</option>
+          </select>
+        </div>
 
+        {/* COMMON FIELDS */}
         <input
           type="text"
           placeholder="Full Name"
           required
+          className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-blue-500"
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
         />
 
         <input
           type="email"
-          placeholder="Email"
+          placeholder="Email Address"
           required
+          className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-blue-500"
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
         />
 
         <input
           type="password"
-          placeholder="Password"
+          placeholder="Security Password"
           required
+          className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-blue-500"
           onChange={(e) =>
             setFormData({ ...formData, password: e.target.value })
           }
         />
 
-        <input
-          type="text"
-          placeholder="Phone"
-          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-        />
+        {/* CONDITIONAL FIELDS FOR SELLER */}
+        {formData.role === "seller" && (
+          <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+            <input
+              type="text"
+              placeholder="Merchant Card Number (Encrypted)"
+              required={formData.role === "seller"}
+              className="w-full bg-slate-900 border border-emerald-900/50 rounded-lg p-3 text-emerald-400 outline-none focus:border-emerald-500"
+              onChange={(e) =>
+                setFormData({ ...formData, cardNumber: e.target.value })
+              }
+            />
+            <p className="text-[10px] text-emerald-600 mt-1 ml-1">
+              🔒 Protected by Always Encrypted
+            </p>
+          </div>
+        )}
 
-        <textarea
-          placeholder="Address"
-          onChange={(e) =>
-            setFormData({ ...formData, address: e.target.value })
-          }
-        />
+        {/* CONDITIONAL FIELDS FOR CUSTOMER */}
+        {formData.role === "customer" && (
+          <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+            <input
+              type="text"
+              placeholder="Phone Number"
+              className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-blue-500"
+              onChange={(e) =>
+                setFormData({ ...formData, phone: e.target.value })
+              }
+            />
+            <textarea
+              placeholder="Delivery Address"
+              className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-blue-500 h-20"
+              onChange={(e) =>
+                setFormData({ ...formData, address: e.target.value })
+              }
+            />
+          </div>
+        )}
 
         <button
           type="submit"
-          style={{ background: "#0070f3", color: "white", padding: "10px" }}
+          className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-all active:scale-95 shadow-lg shadow-blue-900/20"
         >
-          Register Account
+          Initialize Account
         </button>
       </form>
-      {status && <p>{status}</p>}
+
+      {status && (
+        <div className="px-4 pb-4 text-center">
+          <p className="text-sm font-mono text-blue-400 bg-blue-900/20 py-2 rounded-lg border border-blue-800/30">
+            {status}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

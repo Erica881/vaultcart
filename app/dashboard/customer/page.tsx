@@ -7,8 +7,12 @@ export default function CustomerDashboard() {
   useEffect(() => {
     async function getOrders() {
       const token = localStorage.getItem("vault_token");
+      const agent = localStorage.getItem("vault_user_agent");
       const res = await fetch("/api/customer/orders", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-User-Agent": agent, // Send the agent in a custom header
+        },
       });
       const data = await res.json();
       setOrders(data);

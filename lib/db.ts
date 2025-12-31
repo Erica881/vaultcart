@@ -1,17 +1,119 @@
-import sql, { ConnectionPool, config, Request } from "mssql";
+// import sql, { ConnectionPool, config, Request } from "mssql";
+// import Msnodesqlv8 from "msnodesqlv8";
 
-// 1. Define the interface for your query parameters
+// interface QueryParam {
+//   name: string;
+//   type: any;
+//   value: any;
+// }
+
+// const sqlConfig: config = {
+//   user: "Vault_App_Connect",
+//   password: "StrongPassword_App1!",
+//   database: "VaultCartDB",
+//   server: "192.168.245.100",
+//   driver: "msnodesqlv8",
+//   pool: {
+//     max: 10,
+//     min: 0,
+//     idleTimeoutMillis: 30000,
+//   },
+//   // options: {
+//   //   encrypt: true,
+//   //   trustServerCertificate: true,
+//   //   // FIX 1: Uncomment and ensure this is TRUE
+//   //   columnEncryptionSetting: true,
+//   //   "Column Encryption Setting": "Enabled",
+//   //   cryptoCredentialsDetails: {
+//   //     minVersion: "TLSv1.2",
+//   //   },
+//   // },
+//   options: {
+//     encrypt: true,
+//     trustServerCertificate: true,
+//     columnEncryptionSetting: true, // Crucial for AE
+//     cryptoCredentialsDetails: {
+//       minVersion: "TLSv1.2",
+//     },
+//   },
+// };
+
+// let globalPool: ConnectionPool | null = null;
+
+// async function getPool(): Promise<ConnectionPool> {
+//   if (globalPool) return globalPool;
+//   globalPool = await sql.connect(sqlConfig);
+//   return globalPool;
+// }
+
+// export async function executeProcedure(
+//   procedureName: string,
+//   params: QueryParam[] = []
+// ) {
+//   try {
+//     const pool = await getPool();
+//     const request: Request = pool.request();
+//     params.forEach((p) => request.input(p.name, p.type, p.value));
+//     return await request.execute(procedureName);
+//   } catch (err: any) {
+//     console.error(`Procedure Error (${procedureName}):`, err);
+//     throw err;
+//   }
+// }
+// /**
+//  * Executes a raw T-SQL Batch (Good for DECLARE / EXEC patterns)
+//  */
+// export async function executeBatch(query: string, params: QueryParam[] = []) {
+//   try {
+//     const pool = await getPool();
+//     const request: Request = pool.request();
+
+//     // Map parameters to the request
+//     params.forEach((p) => {
+//       request.input(p.name, p.type, p.value);
+//     });
+
+//     // We use .query() here for raw T-SQL strings
+//     return await request.query(query);
+//   } catch (err: any) {
+//     if (err.originalError && err.originalError.errors) {
+//       console.error("DETAILED ENCRYPTION ERRORS:", err.originalError.errors);
+//     }
+//     throw err;
+//   }
+// }
+
+// export async function executeQuery(query: string, params: QueryParam[] = []) {
+//   try {
+//     const pool = await getPool();
+//     const request: Request = pool.request();
+//     params.forEach((p) => {
+//       request.input(p.name, p.type, p.value);
+//     });
+//     return await request.query(query);
+//   } catch (err) {
+//     console.error("SQL error", err);
+//     throw err;
+//   }
+// }
+
+// // ... keep your executeWithRLS as is ...
+
+import sql, { ConnectionPool, config, Request } from "mssql";
+import Msnodesqlv8 from "msnodesqlv8";
+
 interface QueryParam {
   name: string;
-  type: any; // e.g., sql.Int, sql.NVarChar
+  type: any;
   value: any;
 }
 
 const sqlConfig: config = {
-  user: "Vault_App_Connect",
+  user: "Vault_App_Connect", // Login used by web application [cite: 45]
   password: "StrongPassword_App1!",
   database: "VaultCartDB",
   server: "192.168.245.100",
+  // driver: "msnodesqlv8",
   pool: {
     max: 10,
     min: 0,
@@ -20,10 +122,16 @@ const sqlConfig: config = {
   options: {
     encrypt: true,
     trustServerCertificate: true,
+    // FIX: Always Encrypted requires these specific settings
+    columnEncryptionSetting: true,
+    // "Column Encryption Setting": "Enabled",
+    ...({ columnEncryptionSetting: true } as any),
+    // cryptoCredentialsDetails: {
+    //   minVersion: "TLSv1.2",
+    // },
   },
 };
 
-// Global pool variable to prevent creating too many connections in Next.js dev mode
 let globalPool: ConnectionPool | null = null;
 
 async function getPool(): Promise<ConnectionPool> {
@@ -33,60 +141,103 @@ async function getPool(): Promise<ConnectionPool> {
 }
 
 /**
- * Standard query execution
+ * FIX: RLS Context Helper
+ * Sets the SESSION_CONTEXT required by your RLS predicates[cite: 126, 129].
  */
-export async function executeQuery(query: string, params: QueryParam[] = []) {
+async function setRlsContext(
+  request: Request,
+  sessionToken: string,
+  userAgent: string
+) {
+  request.input("SessionToken", sql.UniqueIdentifier, sessionToken);
+  request.input("UserAgent", sql.NVarChar(500), userAgent);
+
+  // These keys MUST match the keys used in your SQL fn_OrderSecurityPredicate
+  await request.batch(`
+    EXEC sp_set_session_context @key=N'SessionToken', @value=@SessionToken;
+    EXEC sp_set_session_context @key=N'UserAgent', @value=@UserAgent;
+  `);
+}
+
+/**
+ * FIX: Secure Procedure Execution
+ * Essential for Always Encrypted columns (e.g., Registering a Seller with a CardNumber)[cite: 10, 393].
+ */
+export async function executeProcedure(
+  procedureName: string,
+  params: QueryParam[] = []
+) {
   try {
     const pool = await getPool();
     const request: Request = pool.request();
+    params.forEach((p) => request.input(p.name, p.type, p.value));
 
-    params.forEach((p) => {
-      request.input(p.name, p.type, p.value);
-    });
-
-    return await request.query(query);
-  } catch (err) {
-    console.error("SQL error", err);
+    // AE requires RPC calls (request.execute) rather than raw query strings
+    return await request.execute(procedureName);
+  } catch (err: any) {
+    console.error(`Procedure Error (${procedureName}):`, err);
     throw err;
   }
 }
 
 /**
- * Executes a query within a transaction to set Session Context for Row-Level Security (RLS)
- * @param sessionToken - The GUID/UniqueIdentifier for the session
- * @param userAgent - The browser user agent string
- * @param query - The SQL query to run (e.g., SELECT * FROM Sales.Orders)
+ * FIX: Secure Query with RLS
+ * Use this for all SELECT statements on Orders, Products, or Items[cite: 116, 117, 118].
  */
-export async function executeWithRLS(
+export async function executeSecureQuery(
+  query: string,
   sessionToken: string,
   userAgent: string,
-  query: string
+  params: QueryParam[] = []
 ) {
-  let pool: ConnectionPool | null = null;
   try {
-    pool = await getPool();
-    const transaction = new sql.Transaction(pool);
+    const pool = await getPool();
+    const request: Request = pool.request();
 
-    await transaction.begin();
-    const request = new sql.Request(transaction);
+    // 1. Set the RLS context first [cite: 151]
+    await setRlsContext(request, sessionToken, userAgent);
 
-    // 1. Set the Session Context (Critical for RLS Policy in your VaultCartDB)
-    // Note: sessionToken must be a valid GUID string for sql.UniqueIdentifier
-    request.input("Token", sql.UniqueIdentifier, sessionToken);
-    request.input("Agent", sql.NVarChar, userAgent);
+    // 2. Add parameters for the actual query
+    params.forEach((p) => request.input(p.name, p.type, p.value));
 
-    await request.query(`
-      EXEC sp_set_session_context @key=N'SessionToken', @value=@Token;
-      EXEC sp_set_session_context @key=N'UserAgent', @value=@Agent;
-    `);
+    // 3. Execute the query (Ensures user only sees their own data) [cite: 152]
+    return await request.query(query);
+  } catch (err: any) {
+    console.error("Secure Query Error:", err);
+    throw err;
+  }
+}
 
-    // 2. Run the actual query (The RLS policy filters this automatically)
-    const result = await request.query(query);
+export async function executeBatch(query: string, params: QueryParam[] = []) {
+  try {
+    const pool = await getPool();
+    const request: Request = pool.request();
 
-    await transaction.commit();
-    return result;
+    // Map parameters to the request
+    params.forEach((p) => {
+      request.input(p.name, p.type, p.value);
+    });
+
+    // We use .query() here for raw T-SQL strings
+    return await request.query(query);
+  } catch (err: any) {
+    if (err.originalError && err.originalError.errors) {
+      console.error("DETAILED ENCRYPTION ERRORS:", err.originalError.errors);
+    }
+    throw err;
+  }
+}
+
+export async function executeQuery(query: string, params: QueryParam[] = []) {
+  try {
+    const pool = await getPool();
+    const request: Request = pool.request();
+    params.forEach((p) => {
+      request.input(p.name, p.type, p.value);
+    });
+    return await request.query(query);
   } catch (err) {
-    console.error("RLS Query Error:", err);
+    console.error("SQL error", err);
     throw err;
   }
 }

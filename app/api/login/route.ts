@@ -5,7 +5,7 @@ import { executeQuery } from "@/lib/db";
 export async function POST(request: NextRequest) {
   try {
     const { email, password, role } = await request.json(); // role: 'customer' or 'seller'
-
+    const userAgent = request.headers.get("user-agent") || "unknown";
     // Choose the correct stored procedure based on the login type
     const procedure =
       role === "seller" ? "Membership.LoginSeller" : "Membership.LoginCustomer";
@@ -13,11 +13,12 @@ export async function POST(request: NextRequest) {
     const params = [
       { name: "Email", type: sql.NVarChar(255), value: email },
       { name: "InputPassword", type: sql.NVarChar(255), value: password },
+      { name: "UserAgent", type: sql.NVarChar(500), value: userAgent }, // Required for your session table
     ];
 
     // Execute the stored procedure defined in your SQL script
     const result = await executeQuery(
-      `EXEC ${procedure} @Email, @InputPassword`,
+      `EXEC ${procedure} @Email, @InputPassword;`,
       params
     );
     const loginData = result.recordset[0];
@@ -28,6 +29,7 @@ export async function POST(request: NextRequest) {
           success: true,
           token: loginData.SessionToken, // This GUID is used for RLS
           userId: loginData.CustomerID || loginData.SellerID,
+          userAgent: userAgent, // Send back to client to store for future requests
         },
         {
           headers: {
@@ -43,6 +45,7 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error: any) {
+    console.error("Login Error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
