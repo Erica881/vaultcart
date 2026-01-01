@@ -86,9 +86,10 @@ export default function LoginForm() {
         localStorage.setItem("vault_user_agent", navigator.userAgent);
 
         // Redirect
-        const paths = {
+        const paths: Record<string, string> = {
           admin: "/dashboard/admin",
           seller: "/dashboard/seller",
+          customer: "/dashboard/customer",
         };
         window.location.href = paths[role] || "/dashboard/customer";
       } else {

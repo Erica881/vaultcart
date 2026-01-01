@@ -1,106 +1,4 @@
-// import sql, { ConnectionPool, config, Request } from "mssql";
-// import Msnodesqlv8 from "msnodesqlv8";
-
-// interface QueryParam {
-//   name: string;
-//   type: any;
-//   value: any;
-// }
-
-// const sqlConfig: config = {
-//   user: "Vault_App_Connect",
-//   password: "StrongPassword_App1!",
-//   database: "VaultCartDB",
-//   server: "192.168.245.100",
-//   driver: "msnodesqlv8",
-//   pool: {
-//     max: 10,
-//     min: 0,
-//     idleTimeoutMillis: 30000,
-//   },
-//   // options: {
-//   //   encrypt: true,
-//   //   trustServerCertificate: true,
-//   //   // FIX 1: Uncomment and ensure this is TRUE
-//   //   columnEncryptionSetting: true,
-//   //   "Column Encryption Setting": "Enabled",
-//   //   cryptoCredentialsDetails: {
-//   //     minVersion: "TLSv1.2",
-//   //   },
-//   // },
-//   options: {
-//     encrypt: true,
-//     trustServerCertificate: true,
-//     columnEncryptionSetting: true, // Crucial for AE
-//     cryptoCredentialsDetails: {
-//       minVersion: "TLSv1.2",
-//     },
-//   },
-// };
-
-// let globalPool: ConnectionPool | null = null;
-
-// async function getPool(): Promise<ConnectionPool> {
-//   if (globalPool) return globalPool;
-//   globalPool = await sql.connect(sqlConfig);
-//   return globalPool;
-// }
-
-// export async function executeProcedure(
-//   procedureName: string,
-//   params: QueryParam[] = []
-// ) {
-//   try {
-//     const pool = await getPool();
-//     const request: Request = pool.request();
-//     params.forEach((p) => request.input(p.name, p.type, p.value));
-//     return await request.execute(procedureName);
-//   } catch (err: any) {
-//     console.error(`Procedure Error (${procedureName}):`, err);
-//     throw err;
-//   }
-// }
-// /**
-//  * Executes a raw T-SQL Batch (Good for DECLARE / EXEC patterns)
-//  */
-// export async function executeBatch(query: string, params: QueryParam[] = []) {
-//   try {
-//     const pool = await getPool();
-//     const request: Request = pool.request();
-
-//     // Map parameters to the request
-//     params.forEach((p) => {
-//       request.input(p.name, p.type, p.value);
-//     });
-
-//     // We use .query() here for raw T-SQL strings
-//     return await request.query(query);
-//   } catch (err: any) {
-//     if (err.originalError && err.originalError.errors) {
-//       console.error("DETAILED ENCRYPTION ERRORS:", err.originalError.errors);
-//     }
-//     throw err;
-//   }
-// }
-
-// export async function executeQuery(query: string, params: QueryParam[] = []) {
-//   try {
-//     const pool = await getPool();
-//     const request: Request = pool.request();
-//     params.forEach((p) => {
-//       request.input(p.name, p.type, p.value);
-//     });
-//     return await request.query(query);
-//   } catch (err) {
-//     console.error("SQL error", err);
-//     throw err;
-//   }
-// }
-
-// // ... keep your executeWithRLS as is ...
-
 import sql, { ConnectionPool, config, Request } from "mssql";
-import Msnodesqlv8 from "msnodesqlv8";
 
 interface QueryParam {
   name: string;
@@ -108,36 +6,52 @@ interface QueryParam {
   value: any;
 }
 
-const sqlConfig: config = {
-  user: "Vault_App_Connect", // Login used by web application [cite: 45]
+const sqlConfig: any = {
+  user: "Vault_App_Connect",
   password: "StrongPassword_App1!",
   database: "VaultCartDB",
   server: "192.168.245.100",
-  // driver: "msnodesqlv8",
+  // Move it FROM here...
   pool: {
     max: 10,
     min: 0,
     idleTimeoutMillis: 30000,
   },
   options: {
+    port: 1433,
     encrypt: true,
     trustServerCertificate: true,
-    // FIX: Always Encrypted requires these specific settings
+    // ...TO HERE:
     columnEncryptionSetting: true,
-    // "Column Encryption Setting": "Enabled",
-    ...({ columnEncryptionSetting: true } as any),
-    // cryptoCredentialsDetails: {
-    //   minVersion: "TLSv1.2",
-    // },
   },
 };
 
+// const connectionString = `Server=192.168.245.100,1433;Database=VaultCartDB;User Id=Vault_App_Connect;Password=StrongPassword_App1!;Encrypt=true;TrustServerCertificate=true;Column Encryption Setting=Enabled;`;
+
 let globalPool: ConnectionPool | null = null;
 
-async function getPool(): Promise<ConnectionPool> {
-  if (globalPool) return globalPool;
-  globalPool = await sql.connect(sqlConfig);
-  return globalPool;
+// async function getPool(): Promise<ConnectionPool> {
+//   try {
+//     if (globalPool) return globalPool;
+//     // Connect using the string instead of the config object
+//     globalPool = await sql.connect(sqlConfig);
+//     return globalPool;
+//   } catch (err) {
+//     console.error("Database Connection Failed:", err);
+//     throw err;
+//   }
+// }
+
+// Add 'export' right here:
+export async function getPool(): Promise<ConnectionPool> {
+  try {
+    if (globalPool) return globalPool;
+    globalPool = await sql.connect(sqlConfig);
+    return globalPool;
+  } catch (err) {
+    console.error("Database Connection Failed:", err);
+    throw err;
+  }
 }
 
 /**
@@ -208,22 +122,23 @@ export async function executeSecureQuery(
   }
 }
 
-export async function executeBatch(query: string, params: QueryParam[] = []) {
+export async function executeBatch(
+  procedureName: string,
+  params: QueryParam[] = []
+) {
   try {
     const pool = await getPool();
-    const request: Request = pool.request();
+    const request = pool.request();
 
-    // Map parameters to the request
     params.forEach((p) => {
       request.input(p.name, p.type, p.value);
     });
 
-    // We use .query() here for raw T-SQL strings
-    return await request.query(query);
+    // CHANGE: Pass ONLY the procedure name, NOT a string with "EXEC..."
+    return await request.execute(procedureName);
   } catch (err: any) {
-    if (err.originalError && err.originalError.errors) {
-      console.error("DETAILED ENCRYPTION ERRORS:", err.originalError.errors);
-    }
+    // console.error("Execution Error:", err.message);
+    console.error("FULL DB ERROR:", JSON.stringify(err, null, 2));
     throw err;
   }
 }

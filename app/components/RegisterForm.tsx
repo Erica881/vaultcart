@@ -30,6 +30,7 @@ export default function RegisterForm() {
         setStatus(
           `✅ ${formData.role.toUpperCase()} initialized successfully.`
         );
+        window.location.href = "/login";
       } else {
         setStatus("❌ Error: " + data.error);
       }

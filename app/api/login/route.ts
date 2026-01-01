@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import sql from "mssql";
 import { executeQuery } from "@/lib/db";
+import jwt from "jsonwebtoken";
 
 export async function POST(request: NextRequest) {
   try {
     const { email, password, role } = await request.json(); // role: 'customer' or 'seller'
-    const userAgent = request.headers.get("user-agent") || "unknown";
+    const userAgent = request.headers.get("vault_user_agent") || "unknown";
     // Choose the correct stored procedure based on the login type
     const procedure =
       role === "seller" ? "Membership.LoginSeller" : "Membership.LoginCustomer";
@@ -18,16 +19,22 @@ export async function POST(request: NextRequest) {
 
     // Execute the stored procedure defined in your SQL script
     const result = await executeQuery(
-      `EXEC ${procedure} @Email, @InputPassword;`,
+      `EXEC ${procedure} @Email, @InputPassword, @UserAgent;`,
       params
     );
     const loginData = result.recordset[0];
+
+    const webToken = jwt.sign(
+      { sessionToken: loginData.SessionToken },
+      process.env.JWT_SECRET!
+    );
 
     if (loginData && loginData.Status === "SUCCESS") {
       return NextResponse.json(
         {
           success: true,
-          token: loginData.SessionToken, // This GUID is used for RLS
+          // token: loginData.SessionToken, // This GUID is used for RLS
+          token: webToken,
           userId: loginData.CustomerID || loginData.SellerID,
           userAgent: userAgent, // Send back to client to store for future requests
         },

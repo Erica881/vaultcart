@@ -1,61 +1,3 @@
-// import { NextRequest, NextResponse } from "next/server";
-// import sql from "mssql";
-// import { executeQuery, executeProcedure } from "@/lib/db";
-
-// export async function POST(request: NextRequest) {
-//   try {
-//     const { name, email, password, phone, role, address, cardNumber } =
-//       await request.json();
-
-//     let procedureName = "";
-//     let params: any[] = [];
-//     let query = "";
-
-//     if (role === "seller") {
-//       // SELLER LOGIC: Only 4 Parameters (Name, Email, CardNumber, PlainPassword)
-//       procedureName = "Membership.RegisterSeller";
-//       params = [
-//         { name: "Name", type: sql.NVarChar(100), value: name },
-//         { name: "Email", type: sql.NVarChar(255), value: email },
-//         {
-//           name: "CardNumber",
-//           type: sql.NVarChar(20),
-//           value: cardNumber,
-//         }, // For Always Encrypted column
-//         { name: "PlainPassword", type: sql.NVarChar(100), value: password },
-//       ];
-//       query = `EXEC ${procedureName} @Name, @Email, @CardNumber, @PlainPassword`;
-//     } else {
-//       // CUSTOMER LOGIC: 5 Parameters (Name, Email, Phone, Address, PlainPassword)
-//       procedureName = "Membership.RegisterCustomer";
-//       params = [
-//         { name: "Name", type: sql.NVarChar(100), value: name },
-//         { name: "Email", type: sql.NVarChar(255), value: email },
-//         { name: "Phone", type: sql.NVarChar(20), value: phone || null },
-//         {
-//           name: "Address",
-//           type: sql.NVarChar(sql.MAX),
-//           value: address || "No Address",
-//         },
-//         { name: "PlainPassword", type: sql.NVarChar(100), value: password },
-//       ];
-//       query = `EXEC ${procedureName} @Name, @Email, @Phone, @Address, @PlainPassword`;
-//     }
-
-//     // Call the database
-//     // await executeQuery(query, params);
-//     await executeProcedure(procedureName, params);
-
-//     return NextResponse.json({
-//       success: true,
-//       message: `${role} registered successfully in the Vault.`,
-//     });
-//   } catch (error: any) {
-//     console.error("Registration Error:", error.message);
-//     return NextResponse.json({ error: error.message }, { status: 500 });
-//   }
-// }
-
 import { NextRequest, NextResponse } from "next/server";
 import sql from "mssql";
 
@@ -70,38 +12,41 @@ export async function POST(request: NextRequest) {
     let result;
 
     if (role === "seller") {
-      procedureName = "Membership.RegisterSeller";
+      procedureName = "[Membership].[RegisterSeller]";
 
       // Use EXECUTE AS to ensure the AppUser context is active for the session
       // const query = `
-      //   EXECUTE AS USER = 'AppUser';
-      //   EXEC ${procedureName}
+      //   EXEC [Membership].[RegisterSeller]
       //     @Name = @Name,
       //     @Email = @Email,
-      //     @CardNumber = @CardNumber,
+      //     @CardNumber = N'@CardNumber',
       //     @PlainPassword = @PlainPassword;
-      //   REVERT;
       // `;
 
-      const query = `EXEC ${procedureName} @Name, @Email, @CardNumber, @PlainPassword`;
+      // const query = `EXEC ${procedureName} @Name, @Email, @CardNumber, @PlainPassword`;
 
       const params = [
         { name: "Name", type: sql.NVarChar(100), value: name },
         { name: "Email", type: sql.NVarChar(255), value: email },
-        { name: "CardNumber", type: sql.NVarChar(20), value: cardNumber },
+        { name: "CardNumber", type: sql.NVarChar(16), value: cardNumber },
         { name: "PlainPassword", type: sql.NVarChar(100), value: password },
+        // {
+        //   name: "UserAgent",
+        //   type: sql.NVarChar(500),
+        //   value: request.headers.get("user-agent") || "Unknown",
+        // }, // Add this!
       ];
 
-      result = await executeQuery(query, params);
+      result = await executeBatch(procedureName, params);
     } else {
       // CUSTOMER LOGIC
       procedureName = "Membership.RegisterCustomer";
       const query = `
-        EXEC ${procedureName} 
-          @Name = @Name, 
-          @Email = @Email, 
-          @Phone = @Phone, 
-          @Address = @Address, 
+        EXEC ${procedureName}
+          @Name = @Name,
+          @Email = @Email,
+          @Phone = @Phone,
+          @Address = @Address,
           @PlainPassword = @PlainPassword;
       `;
       const params = [
@@ -115,10 +60,7 @@ export async function POST(request: NextRequest) {
         },
         { name: "PlainPassword", type: sql.NVarChar(100), value: password },
       ];
-      // await executeQuery(
-      //   `EXEC ${procedureName} @Name, @Email, @Phone, @Address, @PlainPassword`,
-      //   params
-      // );
+
       result = await executeQuery(query, params);
     }
     const dbData = result.recordset?.[0];

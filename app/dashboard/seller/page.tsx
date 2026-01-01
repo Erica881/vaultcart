@@ -1,85 +1,3 @@
-// "use client";
-// import { useState } from "react";
-
-// export default function SellerDashboard() {
-//   const [product, setProduct] = useState({ name: "", price: "", stock: "" });
-
-//   const handleAddProduct = async (e: React.FormEvent) => {
-//     e.preventDefault();
-//     const token = localStorage.getItem("vault_token");
-//     // const agent = localStorage.getItem("vault_user_agent");
-//     const agent = localStorage.getItem("vault_user_agent") ?? "unknown_agent";
-
-//     const res = await fetch("/api/seller/add-product", {
-//       method: "POST",
-//       headers: {
-//         "Content-Type": "application/json",
-//         Authorization: `Bearer ${token}`,
-//         "X-User-Agent": agent,
-//       },
-//       body: JSON.stringify(product),
-//     });
-
-//     if (res.ok) {
-//       alert("Product added to your store!");
-//       setProduct({ name: "", price: "", stock: "" });
-//     }
-//   };
-
-//   return (
-//     <div style={{ padding: "20px" }}>
-//       <h1>🏪 Seller Management Portal</h1>
-
-//       <div
-//         style={{
-//           border: "1px solid #ddd",
-//           padding: "20px",
-//           borderRadius: "8px",
-//           maxWidth: "400px",
-//         }}
-//       >
-//         <h3>Add New Product</h3>
-//         <form
-//           onSubmit={handleAddProduct}
-//           style={{ display: "flex", flexDirection: "column", gap: "10px" }}
-//         >
-//           <input
-//             type="text"
-//             placeholder="Product Name"
-//             value={product.name}
-//             onChange={(e) => setProduct({ ...product, name: e.target.value })}
-//             required
-//           />
-//           <input
-//             type="number"
-//             placeholder="Price"
-//             value={product.price}
-//             onChange={(e) => setProduct({ ...product, price: e.target.value })}
-//             required
-//           />
-//           <input
-//             type="number"
-//             placeholder="Initial Stock"
-//             value={product.stock}
-//             onChange={(e) => setProduct({ ...product, stock: e.target.value })}
-//             required
-//           />
-//           <button
-//             type="submit"
-//             style={{
-//               backgroundColor: "#28a745",
-//               color: "white",
-//               padding: "10px",
-//             }}
-//           >
-//             List Product
-//           </button>
-//         </form>
-//       </div>
-//     </div>
-//   );
-// }
-
 "use client";
 import { useEffect, useState } from "react";
 
@@ -87,28 +5,57 @@ export default function SellerDashboard() {
   const [product, setProduct] = useState({ name: "", price: "", stock: "" });
   const [inventory, setInventory] = useState([]);
   const [securityInfo, setSecurityInfo] = useState({ token: "", agent: "" });
-
-  useEffect(() => {
-    const token = localStorage.getItem("vault_token") ?? "";
-    const agent = localStorage.getItem("vault_user_agent") ?? "";
-    setSecurityInfo({ token, agent });
-    fetchInventory(token, agent);
-  }, []);
+  const [status, setStatus] = useState("LOADING...");
 
   async function fetchInventory(token: string, agent: string) {
+    if (!token) return;
+
     try {
       const res = await fetch("/api/seller/inventory", {
+        method: "GET", // Explicitly set GET
         headers: {
           Authorization: `Bearer ${token}`,
           "X-User-Agent": agent,
         },
       });
+
+      // Check if response is empty or invalid
+      if (res.status === 204 || res.headers.get("content-length") === "0") {
+        setInventory([]);
+        return;
+      }
+
       const data = await res.json();
-      if (res.ok) setInventory(data);
+      if (res.ok) {
+        setInventory(data);
+      } else {
+        console.error("Server Error:", data.error);
+      }
     } catch (err) {
-      console.error("Failed to load inventory", err);
+      console.error("Failed to load inventory:", err);
     }
   }
+
+  // 3. Now the useEffect can safely call them
+  useEffect(() => {
+    const initDashboard = async () => {
+      const token = localStorage.getItem("vault_token");
+      const agent = localStorage.getItem("vault_user_agent") || "unknown";
+
+      if (!token) {
+        console.error("No token found!");
+        return;
+      }
+
+      setSecurityInfo({ token, agent });
+
+      // Both functions are now defined above this line, so no more error!
+      // await Promise.all([fetchInventory(token, agent)]);
+      fetchInventory(token || "", agent);
+    };
+
+    initDashboard();
+  }, []);
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +66,12 @@ export default function SellerDashboard() {
         Authorization: `Bearer ${securityInfo.token}`,
         "X-User-Agent": securityInfo.agent,
       },
-      body: JSON.stringify(product),
+      // body: JSON.stringify(product),
+      body: JSON.stringify({
+        name: product.name,
+        price: parseFloat(product.price), // Ensure numbers are passed correctly
+        stock: parseInt(product.stock),
+      }),
     });
 
     if (res.ok) {
@@ -281,7 +233,7 @@ export default function SellerDashboard() {
           <p style={{ color: "#888", fontSize: "14px", marginBottom: "20px" }}>
             Data isolated via{" "}
             <strong>Security.fn_ProductSecurityPredicate</strong>. You cannot
-            see other sellers' products.
+            see other sellers&apos; products.
           </p>
           <table
             style={{ width: "100%", borderCollapse: "collapse", color: "#fff" }}
@@ -304,16 +256,19 @@ export default function SellerDashboard() {
             <tbody>
               {inventory.length > 0 ? (
                 inventory.map((item: any) => (
-                  <tr
-                    key={item.ProductID}
-                    style={{ borderBottom: "1px solid #222" }}
-                  >
-                    <td style={{ padding: "12px" }}>{item.ProductName}</td>
-                    <td style={{ padding: "12px" }}>${item.Price}</td>
-                    <td style={{ padding: "12px" }}>{item.StockQuantity}</td>
+                  <tr key={item.id} style={{ borderBottom: "1px solid #222" }}>
+                    <td style={{ padding: "12px" }}>{item.name}</td>
+                    <td style={{ padding: "12px" }}>${item.price}</td>
+                    <td style={{ padding: "12px" }}>{item.stock_qty}</td>
                     <td style={{ padding: "12px" }}>
-                      <span style={{ color: "#00ff88", fontSize: "10px" }}>
-                        ● TDE ACTIVE
+                      <span
+                        style={{
+                          color: "#00ff88",
+                          fontSize: "12px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        ● TDE active
                       </span>
                     </td>
                   </tr>
