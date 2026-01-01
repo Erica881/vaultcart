@@ -21,6 +21,10 @@ const sqlConfig: any = {
     encrypt: true,
     trustServerCertificate: true,
     columnEncryptionSetting: true, // Required for Always Encrypted
+    // Add this to fix the IP address TLS warning
+    cryptoCredentialsDetails: {
+      checkServerIdentity: () => undefined,
+    },
   },
 };
 

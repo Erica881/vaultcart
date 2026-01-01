@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { executeProcedure2, executeSecureQuery } from "@/lib/db";
+import { executeProcedure2 } from "@/lib/db";
 import { verifySellerSession } from "@/lib/auth-middleware"; // Adjust path to where your helper is
-import sql, { query } from "mssql";
+import sql from "mssql";
 
 export async function POST(req: NextRequest) {
   try {

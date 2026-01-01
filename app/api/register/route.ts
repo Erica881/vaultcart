@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import sql from "mssql";
 
-import { executeProcedure, executeBatch, executeQuery } from "@/lib/db"; // Only need executeProcedure now
+import { executeProcedure2, executeQuery } from "@/lib/db"; // Only need executeProcedure now
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,16 +12,20 @@ export async function POST(request: NextRequest) {
     let result;
 
     if (role === "seller") {
-      procedureName = "[Membership].[RegisterSeller]";
+      procedureName = "Membership.RegisterSeller";
 
       const params = [
         { name: "Name", type: sql.NVarChar(100), value: name },
         { name: "Email", type: sql.NVarChar(255), value: email },
-        { name: "CardNumber", type: sql.NVarChar(16), value: cardNumber },
+        { name: "CardNumber", type: sql.NVarChar(20), value: cardNumber },
         { name: "PlainPassword", type: sql.NVarChar(100), value: password },
       ];
 
-      result = await executeBatch(procedureName, params);
+      result = await executeProcedure2(procedureName, params);
+      return NextResponse.json({
+        success: true,
+        message: "Seller register successfully",
+      });
     } else {
       // CUSTOMER LOGIC
       procedureName = "Membership.RegisterCustomer";
