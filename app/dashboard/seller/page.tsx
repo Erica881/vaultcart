@@ -59,6 +59,12 @@ export default function SellerDashboard() {
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    console.log("Current Token in State:", securityInfo.token); // <--- DEBUG THIS
+    if (!securityInfo.token) {
+      alert("Security Error: No session token found. Please re-login.");
+      return;
+    }
     const res = await fetch("/api/seller/add-product", {
       method: "POST",
       headers: {

@@ -14,27 +14,11 @@ export async function POST(request: NextRequest) {
     if (role === "seller") {
       procedureName = "[Membership].[RegisterSeller]";
 
-      // Use EXECUTE AS to ensure the AppUser context is active for the session
-      // const query = `
-      //   EXEC [Membership].[RegisterSeller]
-      //     @Name = @Name,
-      //     @Email = @Email,
-      //     @CardNumber = N'@CardNumber',
-      //     @PlainPassword = @PlainPassword;
-      // `;
-
-      // const query = `EXEC ${procedureName} @Name, @Email, @CardNumber, @PlainPassword`;
-
       const params = [
         { name: "Name", type: sql.NVarChar(100), value: name },
         { name: "Email", type: sql.NVarChar(255), value: email },
         { name: "CardNumber", type: sql.NVarChar(16), value: cardNumber },
         { name: "PlainPassword", type: sql.NVarChar(100), value: password },
-        // {
-        //   name: "UserAgent",
-        //   type: sql.NVarChar(500),
-        //   value: request.headers.get("user-agent") || "Unknown",
-        // }, // Add this!
       ];
 
       result = await executeBatch(procedureName, params);

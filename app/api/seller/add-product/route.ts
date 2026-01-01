@@ -1,59 +1,56 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import sql from "mssql";
-import jwt from "jsonwebtoken";
-import { executeProcedure } from "@/lib/db"; // Your provided utility
+import { NextRequest, NextResponse } from "next/server";
+import { executeProcedure2, executeSecureQuery } from "@/lib/db";
+import { verifySellerSession } from "@/lib/auth-middleware"; // Adjust path to where your helper is
+import sql, { query } from "mssql";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secure-secret";
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  // 1. Only allow POST requests
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
+export async function POST(req: NextRequest) {
   try {
-    // 2. Extract and Verify the JWT
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "Unauthorized: No token provided" });
+    // 1. Decode the JWT and get the REAL sessionToken (GUID)
+    // This helper validates the signature and expiration first.
+    const decoded = verifySellerSession(req);
+    const { sessionToken } = decoded;
+
+    // 2. Get the User Agent for the Audit Log
+    const userAgent = req.headers.get("x-user-agent") || "unknown";
+
+    // 3. Parse and Validate Request Body
+    const { name, price, stock } = await req.json();
+
+    if (!name || isNaN(Number(price))) {
+      return NextResponse.json(
+        { error: "Invalid product data" },
+        { status: 400 }
+      );
     }
+    const procedureName = "Catalog.usp_AddProductSecurely";
 
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, JWT_SECRET) as { sessionToken: string };
+    // 4. Execute Procedure using the extracted GUID
+    await executeProcedure2(
+      procedureName,
+      [
+        { name: "ProductName", type: sql.NVarChar(200), value: name },
+        { name: "Price", type: sql.Decimal(18, 2), value: Number(price) },
+        { name: "StockQty", type: sql.Int, value: Number(stock) },
+      ],
+      sessionToken,
+      userAgent
+    );
 
-    // 3. Extract Form Data
-    const { name, price, stock } = req.body;
-    const userAgent = req.headers["user-agent"] || "unknown";
-
-    // 4. Prepare Parameters for the Secure Stored Procedure
-    // We use the sessionToken from the DECODED JWT, not the request body!
-    const params = [
-      { name: "ProductName", type: sql.NVarChar(200), value: name },
-      { name: "Price", type: sql.Decimal(18, 2), value: parseFloat(price) },
-      { name: "Stock", type: sql.Int, value: parseInt(stock) },
-      {
-        name: "SessionToken",
-        type: sql.UniqueIdentifier,
-        value: decoded.sessionToken,
-      },
-      { name: "UserAgent", type: sql.NVarChar(500), value: userAgent },
-    ];
-
-    // 5. Execute the Procedure
-    // This triggers sp_set_session_context inside SQL Server for RLS
-    await executeProcedure("Catalog.usp_AddProductSecurely", params);
-
-    return res.status(200).json({ message: "Product listed securely." });
+    return NextResponse.json({
+      success: true,
+      message: "Product listed securely",
+    });
   } catch (error: any) {
-    console.error("Add Product Error:", error);
+    console.error("Vault Execution Failure:", error.message);
 
-    if (error.name === "JsonWebTokenError") {
-      return res.status(403).json({ error: "Invalid security session." });
+    // Handle JWT expiration specifically
+    if (error.message.includes("expired")) {
+      return NextResponse.json({ error: "Session expired" }, { status: 401 });
     }
 
-    return res.status(500).json({ error: "Database transaction failed." });
+    return NextResponse.json(
+      { error: error.message || "Vault rejection" },
+      { status: 403 }
+    );
   }
 }
