@@ -6,7 +6,7 @@ export default function SellerDashboard() {
   const [inventory, setInventory] = useState([]);
   const [securityInfo, setSecurityInfo] = useState({ token: "", agent: "" });
   const [status, setStatus] = useState("LOADING...");
-
+  const [editingId, setEditingId] = useState<number | null>(null);
   async function fetchInventory(token: string, agent: string) {
     if (!token) return;
 
@@ -49,8 +49,6 @@ export default function SellerDashboard() {
 
       setSecurityInfo({ token, agent });
 
-      // Both functions are now defined above this line, so no more error!
-      // await Promise.all([fetchInventory(token, agent)]);
       fetchInventory(token || "", agent);
     };
 
@@ -87,7 +85,103 @@ export default function SellerDashboard() {
     }
   };
 
+  const handleDelete = async (productId: number) => {
+    if (!confirm("Are you sure you want to delete this product?")) return;
+
+    const res = await fetch(`/api/seller/delete-product`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${securityInfo.token}`,
+      },
+      body: JSON.stringify({ productId }),
+    });
+
+    if (res.ok) {
+      fetchInventory(securityInfo.token, securityInfo.agent);
+    } else {
+      const err = await res.json();
+      alert(err.error);
+    }
+  };
+
+  // 2. Create the toggle function
+  const handleEditInitiate = (item: any) => {
+    setEditingId(item.id); // Store the ID we are editing
+    setProduct({
+      name: item.name,
+      price: item.price.toString(),
+      stock: item.stock_qty.toString(),
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  //   e.preventDefault();
+
+  //   const endpoint = editingId
+  //     ? "/api/seller/update-product"
+  //     : "/api/seller/add-product";
+
+  //   const res = await fetch(endpoint, {
+  //     method: editingId ? "PUT" : "POST",
+  //     headers: {
+  //       "Content-Type": "application/json",
+  //       Authorization: `Bearer ${securityInfo.token}`,
+  //       "x-user-agent": securityInfo.agent,
+  //     },
+  //     body: JSON.stringify({
+  //       productId: editingId, // Only used for PUT
+  //       name: product.name,
+  //       price: parseFloat(product.price),
+  //       stock: parseInt(product.stock),
+  //     }),
+  //   });
+
+  //   if (res.ok) {
+  //     alert(editingId ? "Product updated!" : "Product added!");
+  //     setEditingId(null); // Reset mode
+  //     setProduct({ name: "", price: "", stock: "" });
+  //     fetchInventory(securityInfo.token, securityInfo.agent);
+  //   }
+  // };
+
   // Styles defined for Black Background
+
+  // 3. Update your handleSubmit (replaces handleAddProduct)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Decide which API to call
+    const url = editingId
+      ? "/api/seller/update-product"
+      : "/api/seller/add-product";
+    const method = editingId ? "PUT" : "POST";
+
+    const res = await fetch(url, {
+      method: method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${securityInfo.token}`,
+        "x-user-agent": securityInfo.agent,
+      },
+      body: JSON.stringify({
+        productId: editingId, // Will be null for new products
+        name: product.name,
+        price: parseFloat(product.price),
+        stock: parseInt(product.stock),
+      }),
+    });
+
+    if (res.ok) {
+      alert(editingId ? "Product updated!" : "Product added!");
+      setEditingId(null);
+      setProduct({ name: "", price: "", stock: "" });
+      fetchInventory(securityInfo.token, securityInfo.agent);
+    } else {
+      const err = await res.json();
+      alert("Error: " + err.error);
+    }
+  };
   const cardStyle: React.CSSProperties = {
     backgroundColor: "#1a1a1a", // Deep grey card
     border: "1px solid #333",
@@ -163,7 +257,8 @@ export default function SellerDashboard() {
             List New Product
           </h3>
           <form
-            onSubmit={handleAddProduct}
+            // onSubmit={handleAddProduct}
+            onSubmit={handleSubmit}
             style={{ display: "flex", flexDirection: "column" }}
           >
             <label
@@ -212,7 +307,7 @@ export default function SellerDashboard() {
               required
             />
 
-            <button
+            {/* <button
               type="submit"
               style={{
                 backgroundColor: "#0070f3",
@@ -227,7 +322,48 @@ export default function SellerDashboard() {
               }}
             >
               Secure Post to Catalog
-            </button>
+            </button> */}
+
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "10px" }}
+            >
+              <button
+                type="submit"
+                style={{
+                  backgroundColor: editingId ? "#00ff88" : "#0070f3", // Change color for Edit mode
+                  color: editingId ? "#000" : "#fff",
+                  padding: "14px",
+                  borderRadius: "6px",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  border: "none",
+                }}
+              >
+                {editingId
+                  ? "💾 Update Secure Product"
+                  : "🚀 Secure Post to Catalog"}
+              </button>
+
+              {/* NEW: Cancel Button only shows during editing */}
+              {editingId && (
+                <button
+                  onClick={() => {
+                    setEditingId(null);
+                    setProduct({ name: "", price: "", stock: "" });
+                  }}
+                  style={{
+                    backgroundColor: "transparent",
+                    color: "#888",
+                    padding: "8px",
+                    border: "1px solid #444",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel Edit (Switch to Add New)
+                </button>
+              )}
+            </div>
           </form>
         </div>
 
@@ -256,7 +392,7 @@ export default function SellerDashboard() {
                 <th style={{ padding: "12px" }}>PRODUCT</th>
                 <th style={{ padding: "12px" }}>PRICE</th>
                 <th style={{ padding: "12px" }}>STOCK</th>
-                <th style={{ padding: "12px" }}>ENCRYPTION</th>
+                <th style={{ padding: "12px" }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -266,16 +402,31 @@ export default function SellerDashboard() {
                     <td style={{ padding: "12px" }}>{item.name}</td>
                     <td style={{ padding: "12px" }}>${item.price}</td>
                     <td style={{ padding: "12px" }}>{item.stock_qty}</td>
-                    <td style={{ padding: "12px" }}>
-                      <span
+                    <td
+                      style={{ padding: "12px", display: "flex", gap: "10px" }}
+                    >
+                      <button
+                        onClick={() => handleEditInitiate(item)}
                         style={{
-                          color: "#00ff88",
-                          fontSize: "12px",
-                          fontWeight: "bold",
+                          color: "#0070f3",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
                         }}
                       >
-                        ● TDE active
-                      </span>
+                        ✏️ Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        style={{
+                          color: "#ff4d4d",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                      >
+                        🗑️ Delete
+                      </button>
                     </td>
                   </tr>
                 ))
