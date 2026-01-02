@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken";
 export async function POST(request: NextRequest) {
   try {
     const { email, password, role } = await request.json(); // role: 'customer' or 'seller'
-    const userAgent = request.headers.get("vault_user_agent") || "unknown";
+    const userAgent = request.headers.get("user-agent") || "unknown";
     // Choose the correct stored procedure based on the login type
     const procedure =
       role === "seller" ? "Membership.LoginSeller" : "Membership.LoginCustomer";

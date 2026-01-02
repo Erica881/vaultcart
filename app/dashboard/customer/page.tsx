@@ -11,7 +11,7 @@ export default function CustomerDashboard() {
       const res = await fetch("/api/customer/orders", {
         headers: {
           Authorization: `Bearer ${token}`,
-          "X-User-Agent": agent, // Send the agent in a custom header
+          "user-agent": agent, // Send the agent in a custom header
         },
       });
       const data = await res.json();

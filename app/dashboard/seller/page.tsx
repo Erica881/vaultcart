@@ -5,7 +5,6 @@ export default function SellerDashboard() {
   const [product, setProduct] = useState({ name: "", price: "", stock: "" });
   const [inventory, setInventory] = useState([]);
   const [securityInfo, setSecurityInfo] = useState({ token: "", agent: "" });
-  const [status, setStatus] = useState("LOADING...");
   const [editingId, setEditingId] = useState<number | null>(null);
   async function fetchInventory(token: string, agent: string) {
     if (!token) return;
@@ -15,7 +14,7 @@ export default function SellerDashboard() {
         method: "GET", // Explicitly set GET
         headers: {
           Authorization: `Bearer ${token}`,
-          "x-user-agent": agent,
+          "user-agent": agent,
         },
       });
 
@@ -68,7 +67,7 @@ export default function SellerDashboard() {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${securityInfo.token}`,
-        "x-user-agent": securityInfo.agent,
+        "user-agent": securityInfo.agent,
       },
       // body: JSON.stringify(product),
       body: JSON.stringify({
@@ -93,7 +92,7 @@ export default function SellerDashboard() {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${securityInfo.token}`,
-        "x-user-agent": securityInfo.agent,
+        "user-agent": securityInfo.agent,
       },
       body: JSON.stringify({ productId }),
     });
@@ -131,7 +130,7 @@ export default function SellerDashboard() {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${securityInfo.token}`,
-        "x-user-agent": securityInfo.agent,
+        "user-agent": securityInfo.agent,
       },
       body: JSON.stringify({
         productId: editingId, // Will be null for new products
@@ -260,13 +259,32 @@ export default function SellerDashboard() {
           🛡️ Active Security Context (RLS Enabled)
         </h4>
         <div style={{ fontSize: "13px", opacity: 0.8 }}>
-          <p>
+          <p style={{ marginBottom: "8px" }}>
             <strong>Database Login:</strong>{" "}
             <span style={{ color: "#00ff88" }}>Vault_App_Connect</span>
           </p>
-          <p>
+          <p
+            style={{
+              marginBottom: "8px",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
             <strong>Session Token:</strong>{" "}
-            <span style={{ color: "#fff", fontFamily: "monospace" }}>
+            <span
+              style={{
+                color: "#fff",
+                fontFamily: "monospace",
+                backgroundColor: "#000",
+                padding: "4px 8px",
+                borderRadius: "4px",
+                marginTop: "4px",
+                border: "1px solid #333",
+                /* THE FIX IS HERE */
+                wordBreak: "break-all",
+                lineHeight: "1.4",
+              }}
+            >
               {securityInfo.token || "No Active Session"}
             </span>
           </p>
