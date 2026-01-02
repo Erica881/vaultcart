@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       [
         { name: "ProductName", type: sql.NVarChar(200), value: name },
         { name: "Price", type: sql.Decimal(18, 2), value: Number(price) },
-        { name: "StockQty", type: sql.Int, value: Number(stock) },
+        { name: "Stock", type: sql.Int, value: Number(stock) },
       ],
       sessionToken,
       userAgent

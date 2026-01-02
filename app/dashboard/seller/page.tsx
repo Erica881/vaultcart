@@ -15,7 +15,7 @@ export default function SellerDashboard() {
         method: "GET", // Explicitly set GET
         headers: {
           Authorization: `Bearer ${token}`,
-          "X-User-Agent": agent,
+          "x-user-agent": agent,
         },
       });
 
@@ -70,7 +70,7 @@ export default function SellerDashboard() {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${securityInfo.token}`,
-        "X-User-Agent": securityInfo.agent,
+        "x-user-agent": securityInfo.agent,
       },
       // body: JSON.stringify(product),
       body: JSON.stringify({
