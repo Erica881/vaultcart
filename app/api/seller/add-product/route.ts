@@ -5,15 +5,11 @@ import sql, { query } from "mssql";
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. Decode the JWT and get the REAL sessionToken (GUID)
-    // This helper validates the signature and expiration first.
     const decoded = verifySellerSession(req);
-    const { sessionToken } = decoded;
+    const { sessionToken } = decoded; // This must be the GUID string
 
-    // 2. Get the User Agent for the Audit Log
-    const userAgent = req.headers.get("x-user-agent") || "unknown";
+    const userAgent = req.headers.get("user-agent") || "unknown"; // Use standard header name
 
-    // 3. Parse and Validate Request Body
     const { name, price, stock } = await req.json();
 
     if (!name || isNaN(Number(price))) {
@@ -22,19 +18,17 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
     const procedureName = "Catalog.usp_AddProductSecurely";
 
-    // 4. Execute Procedure using the extracted GUID
-    await executeProcedure2(
-      procedureName,
-      [
-        { name: "ProductName", type: sql.NVarChar(200), value: name },
-        { name: "Price", type: sql.Decimal(18, 2), value: Number(price) },
-        { name: "Stock", type: sql.Int, value: Number(stock) },
-      ],
-      sessionToken,
-      userAgent
-    );
+    // FIX: Match the SQL Procedure parameter names exactly
+    await executeProcedure2(procedureName, [
+      { name: "ProductName", type: sql.NVarChar(200), value: name },
+      { name: "Price", type: sql.Decimal(18, 2), value: Number(price) },
+      { name: "Stock", type: sql.Int, value: Number(stock) },
+      { name: "SessionToken", type: sql.UniqueIdentifier, value: sessionToken }, // ADDED
+      { name: "UserAgent", type: sql.NVarChar(500), value: userAgent }, // ADDED
+    ]);
 
     return NextResponse.json({
       success: true,
