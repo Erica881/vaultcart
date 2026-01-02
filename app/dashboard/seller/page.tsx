@@ -93,6 +93,7 @@ export default function SellerDashboard() {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${securityInfo.token}`,
+        "x-user-agent": securityInfo.agent,
       },
       body: JSON.stringify({ productId }),
     });
@@ -115,38 +116,6 @@ export default function SellerDashboard() {
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-
-  //   e.preventDefault();
-
-  //   const endpoint = editingId
-  //     ? "/api/seller/update-product"
-  //     : "/api/seller/add-product";
-
-  //   const res = await fetch(endpoint, {
-  //     method: editingId ? "PUT" : "POST",
-  //     headers: {
-  //       "Content-Type": "application/json",
-  //       Authorization: `Bearer ${securityInfo.token}`,
-  //       "x-user-agent": securityInfo.agent,
-  //     },
-  //     body: JSON.stringify({
-  //       productId: editingId, // Only used for PUT
-  //       name: product.name,
-  //       price: parseFloat(product.price),
-  //       stock: parseInt(product.stock),
-  //     }),
-  //   });
-
-  //   if (res.ok) {
-  //     alert(editingId ? "Product updated!" : "Product added!");
-  //     setEditingId(null); // Reset mode
-  //     setProduct({ name: "", price: "", stock: "" });
-  //     fetchInventory(securityInfo.token, securityInfo.agent);
-  //   }
-  // };
-
-  // Styles defined for Black Background
-
   // 3. Update your handleSubmit (replaces handleAddProduct)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,6 +151,27 @@ export default function SellerDashboard() {
       alert("Error: " + err.error);
     }
   };
+
+  const handleLogout = async () => {
+    try {
+      // 1. Tell the server to invalidate the session
+      await fetch("/api/logout", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${securityInfo.token}`,
+        },
+      });
+    } catch (err) {
+      console.error("Logout failed on server, clearing local storage anyway.");
+    } finally {
+      // 2. Clear local credentials regardless of server success
+      localStorage.removeItem("vault_token");
+      localStorage.removeItem("vault_user_agent");
+
+      // 3. Redirect to login page
+      window.location.href = "/";
+    }
+  };
   const cardStyle: React.CSSProperties = {
     backgroundColor: "#1a1a1a", // Deep grey card
     border: "1px solid #333",
@@ -209,11 +199,47 @@ export default function SellerDashboard() {
         fontFamily: "'Inter', sans-serif",
       }}
     >
-      <h1 style={{ color: "#fff", marginBottom: "30px", fontSize: "2.5rem" }}>
-        🏪 Seller Management Portal
-      </h1>
+      {/* HEADER SECTION: Title and Logout Button side-by-side */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "30px",
+        }}
+      >
+        <h1 style={{ color: "#fff", margin: 0, fontSize: "2.5rem" }}>
+          🏪 Seller Management Portal
+        </h1>
 
-      {/* SECURITY PANEL - MATCHES YOUR DOC (Audit & Isolation) */}
+        <button
+          onClick={handleLogout}
+          style={{
+            backgroundColor: "#ff4d4d",
+            color: "white",
+            padding: "12px 24px",
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer",
+            fontWeight: "bold",
+            fontSize: "14px",
+            transition: "background 0.2s",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+          onMouseOver={(e) =>
+            (e.currentTarget.style.backgroundColor = "#cc0000")
+          }
+          onMouseOut={(e) =>
+            (e.currentTarget.style.backgroundColor = "#ff4d4d")
+          }
+        >
+          <span>🚪</span> Logout Securely
+        </button>
+      </div>
+
+      {/* SECURITY PANEL */}
       <div
         style={{
           ...cardStyle,
@@ -240,7 +266,9 @@ export default function SellerDashboard() {
           </p>
           <p>
             <strong>Session Token:</strong>{" "}
-            {securityInfo.token || "No Active Session"}
+            <span style={{ color: "#fff", fontFamily: "monospace" }}>
+              {securityInfo.token || "No Active Session"}
+            </span>
           </p>
           <p>
             <strong>Device Fingerprint:</strong> {securityInfo.agent}
