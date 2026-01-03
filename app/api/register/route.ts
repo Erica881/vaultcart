@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import sql from "mssql";
 
-import { executeProcedure, executeBatch, executeQuery } from "@/lib/db"; // Only need executeProcedure now
+import { executeProcedure, executeQuery } from "@/lib/db"; // Only need executeProcedure now
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
         { name: "PlainPassword", type: sql.NVarChar(100), value: password },
       ];
 
-      result = await executeBatch(procedureName, params);
+      result = await executeProcedure(procedureName, params);
     } else {
       // CUSTOMER LOGIC
       procedureName = "Membership.RegisterCustomer";

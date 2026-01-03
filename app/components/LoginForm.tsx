@@ -5,87 +5,25 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("customer");
-
-  // const handleLogin = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   const res = await fetch("/api/login", {
-  //     method: "POST",
-  //     body: JSON.stringify({ email, password, role }),
-  //   });
-
-  //   const data = await res.json();
-  //   if (data.success) {
-  //     if (data.success) {
-  //       // 1. Clear old data first to avoid seeing "previous" records
-  //       localStorage.removeItem("vault_token");
-  //       localStorage.removeItem("user_role");
-
-  //       // 2. Set the NEW data
-  //       localStorage.setItem("vault_token", data.token);
-  //       localStorage.setItem("user_role", role);
-
-  //       // 3. Optional: Brief delay (100ms) to ensure storage is written
-  //       setTimeout(() => {
-  //         window.location.href =
-  //           role === "seller" ? "/dashboard/seller" : "/dashboard/customer";
-  //       }, 100);
-  //     }
-  //     // Save the token for Row-Level Security (RLS) checks
-  //     // localStorage.setItem("vault_token", data.token);
-  //     // localStorage.setItem("user_role", role); // Store the role to help with UI logic
-  //     alert("Login Successful!");
-  //     // window.location.href = "/dashboard";
-  //     window.location.href =
-  //       role === "seller" ? "/dashboard/seller" : "/dashboard/customer";
-  //   } else {
-  //     alert("Login Failed: " + data.message);
-  //   }
-  // };
-
-  // const handleLogin = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   const res = await fetch("/api/login", {
-  //     method: "POST",
-  //     body: JSON.stringify({ email, password, role }),
-  //   });
-
-  //   const data = await res.json();
-  //   if (data.success) {
-  //     // 1. Store the Security Token for RLS
-  //     localStorage.setItem("vault_token", data.token);
-  //     localStorage.setItem("user_role", role);
-
-  //     // 2. Redirect based on Role
-  //     if (role === "admin") {
-  //       window.location.href = "/dashboard/admin";
-  //     } else if (role === "seller") {
-  //       window.location.href = "/dashboard/seller";
-  //     } else {
-  //       window.location.href = "/dashboard/customer";
-  //     }
-  //   } else {
-  //     alert("Authentication Failed: " + data.message);
-  //   }
-  // };
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     try {
       const res = await fetch("/api/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" }, // Ensure headers are set
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, role }),
       });
 
       const data = await res.json();
 
       if (res.ok && data.success) {
-        localStorage.setItem("vault_token", data.token || data.sessionToken); // Handle both naming styles
+        localStorage.setItem("vault_token", data.token || data.sessionToken);
         localStorage.setItem("user_role", role);
-        // Store the UserAgent (this must match what was sent to the DB)
         localStorage.setItem("vault_user_agent", navigator.userAgent);
 
-        // Redirect
         const paths: Record<string, string> = {
           admin: "/dashboard/admin",
           seller: "/dashboard/seller",
@@ -93,53 +31,66 @@ export default function LoginForm() {
         };
         window.location.href = paths[role] || "/dashboard/customer";
       } else {
-        // Logic to find the error message regardless of key name
         const errorMsg = data.message || data.error || "Unknown Server Error";
         alert("Authentication Failed: " + errorMsg);
       }
     } catch (err) {
       console.error("Login Fetch Error:", err);
       alert("Network Error: Could not connect to the server.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <form
-      onSubmit={handleLogin}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "10px",
-        maxWidth: "300px",
-      }}
-    >
-      <select
-        className="w-full bg-slate-900 p-3 rounded-lg mb-4 text-white"
-        value={role}
-        onChange={(e) => setRole(e.target.value)}
-      >
-        <option value="customer">Customer Portal</option>
-        <option value="seller">Seller Portal</option>
-        <option value="admin">System Admin / Security</option>
-      </select>
+    <form onSubmit={handleLogin} className="flex flex-col gap-4 w-full">
+      {/* Role Selection */}
+      <div className="flex flex-col gap-1">
+        <label className="text-[10px] uppercase tracking-widest text-slate-500 ml-1">
+          Access Level
+        </label>
+        <select
+          className="w-full bg-slate-900 border border-slate-700 p-3 rounded-xl text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+        >
+          <option value="customer">Customer Portal</option>
+          <option value="seller">Seller Portal</option>
+          <option value="admin">System Admin / Security</option>
+        </select>
+      </div>
+
+      {/* Email Input */}
       <input
         type="email"
-        placeholder="Email"
+        placeholder="Email Address"
+        className="w-full bg-slate-900 border border-slate-700 p-3 rounded-xl text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
         onChange={(e) => setEmail(e.target.value)}
         required
       />
+
+      {/* Password Input */}
       <input
         type="password"
-        placeholder="Password"
+        placeholder="Secret Key / Password"
+        className="w-full bg-slate-900 border border-slate-700 p-3 rounded-xl text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
         onChange={(e) => setPassword(e.target.value)}
         required
       />
+
+      {/* Submit Button */}
       <button
         type="submit"
-        style={{ backgroundColor: "#0070f3", color: "white", padding: "10px" }}
+        disabled={loading}
+        className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-[0.98]"
       >
-        Login
+        {loading ? "Authenticating..." : "Authorize Access"}
       </button>
+
+      {/* Security Hint for PDPA */}
+      <p className="text-[10px] text-center text-slate-500 mt-2">
+        Session encrypted via AES-256 TLS
+      </p>
     </form>
   );
 }

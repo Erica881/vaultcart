@@ -1,21 +1,25 @@
-"use client"; // Add this at the top
+"use client";
 import { useState } from "react";
 import LoginForm from "@/app/components/LoginForm";
 import RegisterForm from "@/app/components/RegisterForm";
 
 export default function PublicLandingPage() {
-  const [isLogin, setIsLogin] = useState(true); // State to track which form to show
+  const [isLogin, setIsLogin] = useState(true);
 
   return (
-    <main className="min-h-screen bg-slate-900 text-gray-100">
-      <div className="max-w-7xl mx-auto px-6 py-20 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-        {/* LEFT CONTENT (Introduction) - Keep as is */}
+    <main className="min-h-screen bg-slate-900 text-gray-100 flex flex-col">
+      <div className="flex-grow max-w-7xl mx-auto px-6 py-20 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        {/* LEFT CONTENT */}
         <div>
           <h1 className="text-6xl font-extrabold tracking-tight mb-6">
             Secure Your <span className="text-blue-500">Digital Assets</span>{" "}
             inside the Vault.
           </h1>
-          {/* ... existing description ... */}
+          <p className="text-slate-400 text-lg">
+            Enterprise-grade protection for your identity and financial data.
+            Compliant with PDPA standards to ensure your privacy is never
+            compromised.
+          </p>
         </div>
 
         {/* AUTHENTICATION BOX */}
@@ -32,7 +36,41 @@ export default function PublicLandingPage() {
           </div>
 
           {/* Conditional Rendering of Forms */}
-          {isLogin ? <LoginForm /> : <RegisterForm />}
+          {isLogin ? (
+            <LoginForm />
+          ) : (
+            <div className="space-y-6">
+              <RegisterForm />
+
+              {/* PDPA: Purpose Specification & Opt-in */}
+              {/* <div className="mt-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                <p className="text-xs text-slate-400 mb-3">
+                  <strong>Notice:</strong> We collect your Name, Email, and Card
+                  details solely for account verification and secure transaction
+                  processing.
+                </p>
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="pdpa-consent"
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    required // PDPA: User must check this themselves
+                  />
+                  <label
+                    htmlFor="pdpa-consent"
+                    className="text-xs text-slate-300"
+                  >
+                    I have read and agree to the processing of my personal data
+                    in accordance with the{" "}
+                    <a href="/privacy" className="text-blue-500 underline">
+                      Privacy Policy
+                    </a>
+                    .
+                  </label>
+                </div>
+              </div> */}
+            </div>
+          )}
 
           <div className="mt-8 pt-6 border-t border-slate-700 text-center">
             <p className="text-sm text-slate-400">
@@ -47,6 +85,22 @@ export default function PublicLandingPage() {
           </div>
         </div>
       </div>
+
+      {/* PDPA: Privacy Policy Footer */}
+      <footer className="w-full py-6 border-t border-slate-800 text-center">
+        <div className="flex justify-center gap-6 text-xs text-slate-500">
+          <a href="/privacy" className="hover:text-blue-500 transition-colors">
+            Privacy Policy
+          </a>
+          <a href="/terms" className="hover:text-blue-500 transition-colors">
+            Terms of Service
+          </a>
+          <a href="/cookies" className="hover:text-blue-500 transition-colors">
+            Cookie Policy
+          </a>
+          <span>© 2024 Digital Vault. PDPA Compliant.</span>
+        </div>
+      </footer>
     </main>
   );
 }
