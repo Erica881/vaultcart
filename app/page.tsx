@@ -7,7 +7,7 @@ export default function PublicLandingPage() {
   const [isLogin, setIsLogin] = useState(true);
 
   return (
-    <main className="min-h-screen bg-slate-900 text-gray-100 flex flex-col">
+    <main className="min-h-screen flexjustify-between bg-slate-900 text-gray-100 flex flex-col">
       <div className="flex-grow max-w-7xl mx-auto px-6 py-20 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
         {/* LEFT CONTENT */}
         <div>
