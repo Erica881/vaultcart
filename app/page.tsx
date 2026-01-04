@@ -41,34 +41,6 @@ export default function PublicLandingPage() {
           ) : (
             <div className="space-y-6">
               <RegisterForm />
-
-              {/* PDPA: Purpose Specification & Opt-in */}
-              {/* <div className="mt-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-                <p className="text-xs text-slate-400 mb-3">
-                  <strong>Notice:</strong> We collect your Name, Email, and Card
-                  details solely for account verification and secure transaction
-                  processing.
-                </p>
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    id="pdpa-consent"
-                    className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    required // PDPA: User must check this themselves
-                  />
-                  <label
-                    htmlFor="pdpa-consent"
-                    className="text-xs text-slate-300"
-                  >
-                    I have read and agree to the processing of my personal data
-                    in accordance with the{" "}
-                    <a href="/privacy" className="text-blue-500 underline">
-                      Privacy Policy
-                    </a>
-                    .
-                  </label>
-                </div>
-              </div> */}
             </div>
           )}
 

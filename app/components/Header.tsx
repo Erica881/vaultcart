@@ -25,19 +25,24 @@ export default function Header() {
           </h1>
         </Link>
 
-        <button className="flex items-center gap-2 px-6 md:px-4 py-3 md:py-2 rounded-lg text-base md:text-sm font-bold text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all group">
-          <LogOut
-            size={18}
-            className="group-hover:-translate-x-1 transition-transform"
-          />
-          Logout
-        </button>
+        <Link
+          href="/"
+          className="flex  gap-2 px-8 py-4 bg-blue-600 rounded-full font-bold hover:bg-blue-500  shadow-lg shadow-blue-900/20 text-white sm:w-auto"
+        >
+          <button className="flex items-center gap-2 px-6 md:px-4 py-3 md:py-2 rounded-lg text-base md:text-sm font-bold text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all group">
+            <LogOut
+              size={18}
+              className="group-hover:-translate-x-1 transition-transform"
+            />
+            Logout
+          </button>
+        </Link>
       </nav>
 
       {/* --- HERO SECTION --- */}
-      <section className="px-4 md:px-6 py-12 md:py-20 text-center bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-blue-900/20 via-slate-900 to-slate-900">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-6 leading-[1.1] bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+      <section className="px-4 md:px-6 py-12 md:py-10 text-center bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-blue-900/20 via-slate-900 to-slate-900">
+        <div className=" lg:text-5xl mx-auto">
+          <h2 className="text-3xl md:text-5xl font-extrabold mb-6 leading-[1.1] bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
             Secure Your Finds.
           </h2>
           <p className="text-gray-400 text-base md:text-xl max-w-2xl mx-auto mb-10 px-2">
