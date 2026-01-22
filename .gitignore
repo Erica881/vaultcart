@@ -39,3 +39,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Ignore all Terraform variable files (highly recommended for security)
+*.tfvars
+*.tfvars.json
+
+# Ignore the local terraform state files (these contain secrets in plain text!)
+*.tfstate
+*.tfstate.backup
+
+# Ignore the .terraform directory (it's huge and contains binaries)
+.terraform/
+
+# Ignore crash logs
+crash.log
