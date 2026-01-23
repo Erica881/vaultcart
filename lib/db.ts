@@ -1,165 +1,123 @@
-import sql, { ConnectionPool, Request } from "mssql";
+import mysql from "mysql2/promise";
 
+// We keep this interface for your frontend compatibility,
+// but MySQL doesn't need 'type', only 'value'.
 interface QueryParam {
   name: string;
-  type: any;
+  type?: any;
   value: any;
 }
 
-const sqlConfig: any = {
-  user: "Vault_App_Connect",
-  password: "StrongPassword_App1!",
-  database: "VaultCartDB",
-  server: "192.168.245.100",
-  pool: {
-    max: 10,
-    min: 0,
-    idleTimeoutMillis: 30000,
-  },
-  options: {
-    port: 1433,
-    encrypt: true,
-    trustServerCertificate: true,
-    columnEncryptionSetting: true, // Required for Always Encrypted
-  },
+const mysqlConfig = {
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: 3306,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
 };
 
-let globalPool: ConnectionPool | null = null;
+let pool: mysql.Pool | null = null;
 
-export async function getPool(): Promise<ConnectionPool> {
-  try {
-    if (globalPool) return globalPool;
-    globalPool = await sql.connect(sqlConfig);
-    return globalPool;
-  } catch (err) {
-    console.error("Database Connection Failed:", err);
-    throw err;
+export async function getPool(): Promise<mysql.Pool> {
+  if (!pool) {
+    console.log("Connecting to Database:", mysqlConfig.database); // Add this!
+    try {
+      pool = mysql.createPool(mysqlConfig);
+      console.log("MySQL Pool Created");
+    } catch (err) {
+      console.error("Database Connection Failed:", err);
+      throw err;
+    }
   }
+  return pool;
 }
 
 /**
- * INTERNAL HELPER: Sets the RLS / Security Context
- * This ensures that the SessionToken is correctly typed as a UniqueIdentifier
- * to prevent "Conversion failed" errors.
+ * INTERNAL HELPER: Sets the MySQL Session Variables
+ * This emulates the RLS context you had in MSSQL.
  */
-async function setRlsContext(
-  request: Request,
+async function setSessionContext(
+  connection: mysql.PoolConnection,
   sessionToken: string,
-  userAgent: string
+  userAgent: string,
 ) {
-  // Use explicit types to ensure the GUID string is converted correctly by the driver
-  request.input("ContextToken", sql.UniqueIdentifier, sessionToken);
-  request.input("ContextAgent", sql.NVarChar(500), userAgent);
-
-  await request.batch(`
-    EXEC sp_set_session_context @key=N'SessionToken', @value=@ContextToken;
-    EXEC sp_set_session_context @key=N'UserAgent', @value=@ContextAgent;
-  `);
-}
-
-/**
- * EXECUTE SECURE PROCEDURE
- * Used for Add-Product, Registration, etc.
- */
-export async function executeProcedure(
-  procedureName: string,
-  params: QueryParam[] = [],
-  sessionToken?: string,
-  userAgent?: string
-) {
-  try {
-    const pool = await getPool();
-    const request = pool.request();
-
-    // 1. Set Security Context if provided
-    if (sessionToken && userAgent) {
-      await setRlsContext(request, sessionToken, userAgent);
-    }
-
-    // 2. Inject Procedure Parameters
-    params.forEach((param) => {
-      request.input(param.name, param.type, param.value);
-    });
-
-    // 3. Execute as RPC (Requirement for Always Encrypted)
-    return await request.execute(procedureName);
-  } catch (err: any) {
-    console.error(`Procedure Error (${procedureName}):`, err.message);
-    throw err;
-  }
-}
-
-export async function executeProcedure2(
-  procedureName: string,
-  params: QueryParam[] = [],
-  sessionToken?: string,
-  userAgent?: string
-) {
-  try {
-    const pool = await getPool();
-    const request = pool.request();
-
-    // 1. SET SECURITY CONTEXT (Background info)
-    // We do NOT use request.input here because these aren't procedure arguments
-    if (sessionToken && userAgent) {
-      await request.batch(`
-        EXEC sp_set_session_context @key=N'SessionToken', @value='${sessionToken}';
-        EXEC sp_set_session_context @key=N'UserAgent', @value=N'${userAgent}';
-      `);
-    }
-
-    // 2. INJECT PROCEDURE ARGUMENTS (The actual 3 fields)
-    params.forEach((p) => {
-      request.input(p.name, p.type, p.value);
-    });
-
-    // 3. EXECUTE
-    // SQL now sees exactly 3 arguments, matching your procedure definition
-    return await request.execute(procedureName);
-  } catch (err: any) {
-    console.error(`Procedure Error (${procedureName}):`, err.message);
-    throw err;
-  }
+  // In MySQL, we use @variables to hold session context for Views/Procedures
+  await connection.execute("SET @SessionToken = ?, @UserAgent = ?", [
+    sessionToken,
+    userAgent,
+  ]);
 }
 
 /**
  * EXECUTE SECURE QUERY
- * Used for SELECT statements protected by Row-Level Security.
+ * Used for SELECT statements targeting your new Secure Views.
  */
 export async function executeSecureQuery(
   query: string,
   sessionToken: string,
   userAgent: string,
-  params: QueryParam[] = []
+  params: any[] = [], // MySQL uses simple arrays for params
 ) {
+  const connection = await (await getPool()).getConnection();
   try {
-    const pool = await getPool();
-    const request: Request = pool.request();
+    // 1. Set the context so the View can filter data
+    await setSessionContext(connection, sessionToken, userAgent);
 
-    await setRlsContext(request, sessionToken, userAgent);
-
-    params.forEach((p) => request.input(p.name, p.type, p.value));
-
-    return await request.query(query);
+    // 2. Execute the query
+    const [rows] = await connection.execute(query, params);
+    return rows;
   } catch (err: any) {
     console.error("Secure Query Error:", err.message);
     throw err;
+  } finally {
+    connection.release();
   }
 }
 
 /**
- * STANDARD QUERY (No RLS Context)
+ * EXECUTE PROCEDURE
+ * Optimized for MySQL CALL syntax.
  */
-export async function executeQuery(query: string, params: QueryParam[] = []) {
+export async function executeProcedure(
+  procedureName: string,
+  params: any[] = [],
+  sessionToken?: string,
+  userAgent?: string,
+) {
+  const connection = await (await getPool()).getConnection();
   try {
-    const pool = await getPool();
-    const request: Request = pool.request();
-    params.forEach((p) => {
-      request.input(p.name, p.type, p.value);
-    });
-    return await request.query(query);
-  } catch (err) {
-    console.error("SQL error", err);
+    if (sessionToken && userAgent) {
+      await setSessionContext(connection, sessionToken, userAgent);
+    }
+
+    // MySQL uses "CALL ProcedureName(?, ?, ?)"
+    const placeholders = params.map(() => "?").join(", ");
+    const sql = `CALL ${procedureName}(${placeholders})`;
+    console.log("SQL:", sql);
+
+    const [result] = await connection.execute(sql, params);
+    return result;
+  } catch (err: any) {
+    console.error(`Procedure Error (${procedureName}):`, err.message);
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * STANDARD QUERY (No Context)
+ */
+export async function executeQuery(query: string, params: any[] = []) {
+  const p = await getPool();
+  try {
+    const [rows] = await p.execute(query, params);
+    return rows;
+  } catch (err: any) {
+    console.error("SQL error", err.message);
     throw err;
   }
 }

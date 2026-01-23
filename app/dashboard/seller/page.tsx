@@ -9,30 +9,30 @@ export default function SellerDashboard() {
   async function fetchInventory(token: string, agent: string) {
     if (!token) return;
 
-    try {
-      const res = await fetch("/api/seller/inventory", {
-        method: "GET", // Explicitly set GET
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "user-agent": agent,
-        },
-      });
+    // try {
+    //   const res = await fetch("/api/seller/inventory", {
+    //     method: "GET", // Explicitly set GET
+    //     headers: {
+    //       Authorization: `Bearer ${token}`,
+    //       "user-agent": agent,
+    //     },
+    //   });
 
-      // Check if response is empty or invalid
-      if (res.status === 204 || res.headers.get("content-length") === "0") {
-        setInventory([]);
-        return;
-      }
+    //   // Check if response is empty or invalid
+    //   if (res.status === 204 || res.headers.get("content-length") === "0") {
+    //     setInventory([]);
+    //     return;
+    //   }
 
-      const data = await res.json();
-      if (res.ok) {
-        setInventory(data);
-      } else {
-        console.error("Server Error:", data.error);
-      }
-    } catch (err) {
-      console.error("Failed to load inventory:", err);
-    }
+    //   const data = await res.json();
+    //   if (res.ok) {
+    //     setInventory(data);
+    //   } else {
+    //     console.error("Server Error:", data.error);
+    //   }
+    // } catch (err) {
+    //   console.error("Failed to load inventory:", err);
+    // }
   }
 
   // 3. Now the useEffect can safely call them
@@ -53,36 +53,6 @@ export default function SellerDashboard() {
 
     initDashboard();
   }, []);
-
-  const handleAddProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    console.log("Current Token in State:", securityInfo.token); // <--- DEBUG THIS
-    if (!securityInfo.token) {
-      alert("Security Error: No session token found. Please re-login.");
-      return;
-    }
-    const res = await fetch("/api/seller/add-product", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${securityInfo.token}`,
-        "user-agent": securityInfo.agent,
-      },
-      // body: JSON.stringify(product),
-      body: JSON.stringify({
-        name: product.name,
-        price: parseFloat(product.price), // Ensure numbers are passed correctly
-        stock: parseInt(product.stock),
-      }),
-    });
-
-    if (res.ok) {
-      alert("Product added securely to Catalog schema!");
-      setProduct({ name: "", price: "", stock: "" });
-      fetchInventory(securityInfo.token, securityInfo.agent);
-    }
-  };
 
   const handleDelete = async (productId: number) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
@@ -115,6 +85,7 @@ export default function SellerDashboard() {
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
   // 3. Update your handleSubmit (replaces handleAddProduct)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -303,7 +274,6 @@ export default function SellerDashboard() {
             List New Product
           </h3>
           <form
-            // onSubmit={handleAddProduct}
             onSubmit={handleSubmit}
             style={{ display: "flex", flexDirection: "column" }}
           >
@@ -452,7 +422,7 @@ export default function SellerDashboard() {
                       style={{ padding: "12px", display: "flex", gap: "10px" }}
                     >
                       <button
-                        onClick={() => handleEditInitiate(item)}
+                        // onClick={() => handleEditInitiate(item)}
                         style={{
                           color: "#0070f3",
                           background: "none",
@@ -463,7 +433,7 @@ export default function SellerDashboard() {
                         ✏️ Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(item.id)}
+                        // onClick={() => handleDelete(item.id)}
                         style={{
                           color: "#ff4d4d",
                           background: "none",

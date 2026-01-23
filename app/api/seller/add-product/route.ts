@@ -1,50 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
-import { executeProcedure2, executeSecureQuery } from "@/lib/db";
-import { verifySellerSession } from "@/lib/auth-middleware"; // Adjust path to where your helper is
-import sql, { query } from "mssql";
+import { executeProcedure } from "@/lib/db"; // Use the executeProcedure we built earlier
+import { verifySellerSession } from "@/lib/auth-middleware";
 
 export async function POST(req: NextRequest) {
   try {
+    // 1. Verify JWT and extract session data
+    // Ensure verifySellerSession returns { sellerId, sessionToken }
     const decoded = verifySellerSession(req);
-    const { sessionToken } = decoded; // This must be the GUID string
-
-    const userAgent = req.headers.get("user-agent") || "unknown"; // Use standard header name
+    const { sellerId, sessionToken } = decoded;
+    // DEBUG: Log these to your terminal to see which one is undefined
+    console.log("DEBUG - sellerId:", sellerId);
+    console.log("DEBUG - sessionToken:", sessionToken);
 
     const { name, price, stock } = await req.json();
 
+    // 2. Validation
     if (!name || isNaN(Number(price))) {
       return NextResponse.json(
         { error: "Invalid product data" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const procedureName = "Catalog.usp_AddProductSecurely";
+    // 3. Define MySQL Procedure Name
+    // Note: Match the casing exactly as it appears in MySQL Workbench
+    // const procedureName = "Catalog_usp_AddProductSecurely";
 
-    // FIX: Match the SQL Procedure parameter names exactly
-    await executeProcedure2(procedureName, [
-      { name: "ProductName", type: sql.NVarChar(200), value: name },
-      { name: "Price", type: sql.Decimal(18, 2), value: Number(price) },
-      { name: "Stock", type: sql.Int, value: Number(stock) },
-      { name: "SessionToken", type: sql.UniqueIdentifier, value: sessionToken }, // ADDED
-      { name: "UserAgent", type: sql.NVarChar(500), value: userAgent }, // ADDED
-    ]);
+    /**
+     * 4. Prepare Parameters for MySQL
+     * Order must match: p_SellerID, p_Name, p_Price, p_Stock, p_SessionToken
+     */
+    const params = [
+      sellerId, // p_SellerID (INT)
+      name, // p_Name (VARCHAR)
+      Number(price), // p_Price (DECIMAL)
+      Number(stock) || 0, // p_Stock (INT)
+      sessionToken, // p_SessionToken (VARCHAR)
+    ];
 
+    // 5. Execute using your MySQL helper
+    const result: any = await executeProcedure(
+      "Catalog_usp_AddProductSecurely",
+      params,
+    );
     return NextResponse.json({
       success: true,
       message: "Product listed securely",
+      data: result[0], // Returns any SELECT result from the procedure
     });
   } catch (error: any) {
-    console.error("Vault Execution Failure:", error.message);
+    console.error("MySQL Execution Failure:", error.message);
 
-    // Handle JWT expiration specifically
-    if (error.message.includes("expired")) {
+    if (error.message.includes("expired") || error.message.includes("JWT")) {
       return NextResponse.json({ error: "Session expired" }, { status: 401 });
     }
 
+    // Handle MySQL SIGNAL errors (like if the session is invalid)
     return NextResponse.json(
       { error: error.message || "Vault rejection" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 }
