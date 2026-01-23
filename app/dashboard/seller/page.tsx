@@ -422,7 +422,7 @@ export default function SellerDashboard() {
                       style={{ padding: "12px", display: "flex", gap: "10px" }}
                     >
                       <button
-                        // onClick={() => handleEditInitiate(item)}
+                        onClick={() => handleEditInitiate(item)}
                         style={{
                           color: "#0070f3",
                           background: "none",
@@ -433,7 +433,7 @@ export default function SellerDashboard() {
                         ✏️ Edit
                       </button>
                       <button
-                        // onClick={() => handleDelete(item.id)}
+                        onClick={() => handleDelete(item.id)}
                         style={{
                           color: "#ff4d4d",
                           background: "none",

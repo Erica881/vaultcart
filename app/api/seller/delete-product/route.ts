@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { executeProcedure2 } from "@/lib/db";
+import { executeProcedure } from "@/lib/db";
 import { verifySellerSession } from "@/lib/auth-middleware";
-import sql from "mssql";
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -11,14 +10,12 @@ export async function DELETE(req: NextRequest) {
     if (!productId) {
       return NextResponse.json(
         { error: "Product ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
+    const params = [productId, sessionToken];
 
-    await executeProcedure2("Catalog.usp_DeleteProductSecurely", [
-      { name: "ProductID", type: sql.Int, value: Number(productId) },
-      { name: "SessionToken", type: sql.UniqueIdentifier, value: sessionToken },
-    ]);
+    await executeProcedure("usp_DeleteProductSecurely", params);
 
     return NextResponse.json({
       success: true,
