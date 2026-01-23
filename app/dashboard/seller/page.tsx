@@ -9,30 +9,30 @@ export default function SellerDashboard() {
   async function fetchInventory(token: string, agent: string) {
     if (!token) return;
 
-    // try {
-    //   const res = await fetch("/api/seller/inventory", {
-    //     method: "GET", // Explicitly set GET
-    //     headers: {
-    //       Authorization: `Bearer ${token}`,
-    //       "user-agent": agent,
-    //     },
-    //   });
+    try {
+      const res = await fetch("/api/seller/inventory", {
+        method: "GET", // Explicitly set GET
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "user-agent": agent,
+        },
+      });
 
-    //   // Check if response is empty or invalid
-    //   if (res.status === 204 || res.headers.get("content-length") === "0") {
-    //     setInventory([]);
-    //     return;
-    //   }
+      // Check if response is empty or invalid
+      if (res.status === 204 || res.headers.get("content-length") === "0") {
+        setInventory([]);
+        return;
+      }
 
-    //   const data = await res.json();
-    //   if (res.ok) {
-    //     setInventory(data);
-    //   } else {
-    //     console.error("Server Error:", data.error);
-    //   }
-    // } catch (err) {
-    //   console.error("Failed to load inventory:", err);
-    // }
+      const data = await res.json();
+      if (res.ok) {
+        setInventory(data);
+      } else {
+        console.error("Server Error:", data.error);
+      }
+    } catch (err) {
+      console.error("Failed to load inventory:", err);
+    }
   }
 
   // 3. Now the useEffect can safely call them
