@@ -38,15 +38,20 @@ resource "aws_instance" "web" {
   vpc_security_group_ids = [aws_security_group.web_sg.id]
 
   # REQUIREMENT: Boot as root/user data
-  user_data = <<-EOF
+user_data = <<-EOF
     #!/bin/bash
     dnf update -y
-    dnf install -y httpd php docker git
+    # Install Apache, PHP, and the PHP-MySQL driver (Crucial!)
+    dnf install -y httpd php php-mysqlnd docker git
+    
     systemctl enable --now httpd
     systemctl enable --now docker
     usermod -a -G docker ec2-user
-    echo "<h1>Welcome to vaultCart - Deployed in AZ 1b</h1>" > /var/www/html/index.html
+    
+    # Download Lab App (If you have a URL) or create dummy page
+    echo "<h1>vaultCart Web Server</h1><p>Ready to connect to RDS.</p>" > /var/www/html/index.html
   EOF
+  user_data_replace_on_change = true
 
   tags = {
     Name = "${var.project_name}-web-server"
