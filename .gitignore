@@ -41,7 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 # Ignore all Terraform variable files (highly recommended for security)
-*.tfvars
 *.tfvars.json
 
 # Ignore the local terraform state files (these contain secrets in plain text!)
@@ -53,3 +52,6 @@ next-env.d.ts
 
 # Ignore crash logs
 crash.log
+
+*.tfstate.backup
+*.tfstate.*.backup
