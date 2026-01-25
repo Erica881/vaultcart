@@ -88,37 +88,22 @@ resource "aws_instance" "web" {
   # REQUIREMENT: Boot as root/user data
 user_data = <<-EOF
     #!/bin/bash
-    # 1. Update and install basic tools
+    # 1. Install basics
     dnf update -y
     dnf install -y git
-
-    # 2. Install Node.js (Version 20 is standard for Next.js)
     curl -sL https://rpm.nodesource.com/setup_20.x | bash -
     dnf install -y nodejs
-
-    # 3. Install PM2 globally to keep the app running
     npm install -g pm2
 
-    # 4. Clone your Next.js repo
-    cd /home/ec2-user
-    git clone https://github.com/Erica881/vaultcart.git
-    cd vaultcart
-
-    # 5. Create the .env.local file for RDS Connection
-    # Next.js uses DATABASE_URL or specific variables
-    cat <<EOT > .env.local
+    # 2. Setup the folder and Env variables (Terraform knows the DB endpoint)
+    mkdir -p /home/ec2-user/vaultcart
+    cat <<EOT > /home/ec2-user/vaultcart/.env.local
     DATABASE_URL="mysql://admin:rdsPassword123!@${var.db_endpoint}:3306/vaultcart"
     NEXT_PUBLIC_API_URL="http://localhost:3000"
     EOT
 
-    # 6. Install dependencies and build
-    npm install
-    npm run build
-
-    # 7. Start the app with PM2
-    pm2 start npm --name "vaultcart" -- start
-    pm2 save
-    pm2 startup
+    # 3. Fix permissions so ec2-user owns the folder created by root
+    chown -R ec2-user:ec2-user /home/ec2-user/vaultcart
   EOF
 
   # Ensure you allow Port 3000 or Port 80 in your Security Group
