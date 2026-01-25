@@ -1,31 +1,79 @@
 resource "aws_security_group" "web_sg" {
   name        = "${var.project_name}-web-sg"
-  description = "Allow HTTP/HTTPS/SSH"
+  description = "Allow HTTP/HTTPS/SSH for IPv4 and IPv6"
   vpc_id      = var.vpc_id
 
+  # ingress {
+  #   from_port = 80
+  #   to_port   = 80
+  #   protocol  = "tcp"
+  #   cidr_blocks = ["0.0.0.0/0"]
+  # }
+  # ingress {
+  #   from_port = 443
+  #   to_port   = 443
+  #   protocol  = "tcp"
+  #   cidr_blocks = ["0.0.0.0/0"]
+  # }
+  # ingress {
+  #   from_port = 22
+  #   to_port   = 22
+  #   protocol  = "tcp"
+  #   cidr_blocks = ["0.0.0.0/0"]
+  # }
+  # ingress {
+  #   from_port   = 3000
+  #   to_port     = 3000
+  #   protocol    = "tcp"
+  #   cidr_blocks = ["0.0.0.0/0"]      # Allow IPv4
+  #   ipv6_cidr_blocks = ["::/0"]     # REQUIREMENT: Allow IPv6
+  # }
+
+  # HTTP
   ingress {
-    from_port = 80
-    to_port   = 80
-    protocol  = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port        = 80
+    to_port          = 80
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"] # Added IPv6
   }
+
+  # HTTPS
   ingress {
-    from_port = 443
-    to_port   = 443
-    protocol  = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port        = 443
+    to_port          = 443
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"] # Added IPv6
   }
+
+  # SSH (Optional: Usually kept to IPv4 for security, but added for completeness)
   ingress {
-    from_port = 22
-    to_port   = 22
-    protocol  = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"] 
+  }
+
+  # Next.js Port
+  ingress {
+    from_port        = 3000
+    to_port          = 3000
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
   }
   egress {
     from_port = 0
     to_port   = 0
     protocol  = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"] # Added IPv6 Outbound
+  }
+  
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
@@ -40,20 +88,41 @@ resource "aws_instance" "web" {
   # REQUIREMENT: Boot as root/user data
 user_data = <<-EOF
     #!/bin/bash
+    # 1. Update and install basic tools
     dnf update -y
-    # Install Apache, PHP, and the PHP-MySQL driver (Crucial!)
-    dnf install -y httpd php php-mysqlnd docker git
-    
-    systemctl enable --now httpd
-    systemctl enable --now docker
-    usermod -a -G docker ec2-user
-    
-    # Download Lab App (If you have a URL) or create dummy page
-    echo "<h1>vaultCart Web Server</h1><p>Ready to connect to RDS.</p>" > /var/www/html/index.html
-  EOF
-  user_data_replace_on_change = true
+    dnf install -y git
 
+    # 2. Install Node.js (Version 20 is standard for Next.js)
+    curl -sL https://rpm.nodesource.com/setup_20.x | bash -
+    dnf install -y nodejs
+
+    # 3. Install PM2 globally to keep the app running
+    npm install -g pm2
+
+    # 4. Clone your Next.js repo
+    cd /home/ec2-user
+    git clone https://github.com/Erica881/vaultcart.git
+    cd vaultcart
+
+    # 5. Create the .env.local file for RDS Connection
+    # Next.js uses DATABASE_URL or specific variables
+    cat <<EOT > .env.local
+    DATABASE_URL="mysql://admin:rdsPassword123!@${var.db_endpoint}:3306/vaultcart"
+    NEXT_PUBLIC_API_URL="http://localhost:3000"
+    EOT
+
+    # 6. Install dependencies and build
+    npm install
+    npm run build
+
+    # 7. Start the app with PM2
+    pm2 start npm --name "vaultcart" -- start
+    pm2 save
+    pm2 startup
+  EOF
+
+  # Ensure you allow Port 3000 or Port 80 in your Security Group
   tags = {
-    Name = "${var.project_name}-web-server"
+    Name = "${var.project_name}-web-server" 
   }
 }

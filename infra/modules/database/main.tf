@@ -17,6 +17,9 @@ resource "aws_security_group" "rds_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  lifecycle {
+    create_before_destroy = true
+  }
 
   tags = { Name = "${var.project_name}-db-sg" }
 }
