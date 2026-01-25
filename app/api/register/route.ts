@@ -96,11 +96,13 @@ export async function POST(request: NextRequest) {
     let params = [];
 
     if (role === "seller") {
+
       procedureName = "[Membership].[RegisterSeller]";
       params = [
+
         { name: "Name", type: sql.NVarChar(100), value: name },
         { name: "Email", type: sql.NVarChar(255), value: email },
-        { name: "CardNumber", type: sql.NVarChar(16), value: cardNumber },
+        { name: "CardNumber", type: sql.NVarChar(20), value: cardNumber },
         { name: "PlainPassword", type: sql.NVarChar(100), value: password },
       ];
     } else {
