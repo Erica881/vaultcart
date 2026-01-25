@@ -1,17 +1,25 @@
 "use client";
 
 import { useCart } from "@/context/CartContext";
-import { ShoppingCart, ShieldCheck, CheckCircle } from "lucide-react"; // Added CheckCircle
-import { useState } from "react"; // Added useState
+import { ShoppingCart, ShieldCheck, CheckCircle } from "lucide-react";
+import { useState } from "react";
 import Image from "next/image";
-import { Product } from "@/types/product"; // Import here
+
+// types/product.ts
+export interface Product {
+  id: number;
+  name: string;
+  price: number;
+  seller: string;
+  image_url: string;
+}
 
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();
-  const [showSuccess, setShowSuccess] = useState(false); // Code Space: New State
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleAddToCart = () => {
-    // 1. Run the existing logic
+    // Add to cart without checking for auth/buyer status
     addToCart({
       productId: product.id,
       name: product.name,
@@ -19,10 +27,10 @@ export default function ProductCard({ product }: { product: Product }) {
       quantity: 1,
     });
 
-    // 2. Show the message
+    // Show visual feedback
     setShowSuccess(true);
 
-    // 3. Set timer to hide it after 5 seconds
+    // Hide feedback after 1 second
     setTimeout(() => {
       setShowSuccess(false);
     }, 1000);
@@ -36,7 +44,9 @@ export default function ProductCard({ product }: { product: Product }) {
           <div className="text-center p-4">
             <CheckCircle className="text-green-500 mx-auto mb-2" size={40} />
             <p className="text-white font-bold text-sm">Added to Vault!</p>
-            <p className="text-gray-400 text-[10px]">Checking out soon?</p>
+            <p className="text-gray-400 text-[10px]">
+              Ready for secure checkout
+            </p>
           </div>
         </div>
       )}
@@ -48,7 +58,6 @@ export default function ProductCard({ product }: { product: Product }) {
           src={product.image_url}
           alt={product.name}
           fill
-          // className="object-cover"
           sizes="(max-width: 768px) 100vw, 33vw"
         />
         <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md px-2 py-1 rounded-md flex items-center gap-1 text-[10px] font-bold text-blue-400 border border-blue-500/30">
@@ -69,16 +78,15 @@ export default function ProductCard({ product }: { product: Product }) {
           <span className="text-2xl font-black text-white">
             ${product.price ? Number(product.price).toFixed(2) : "0.00"}
           </span>
-          {/* ONLY show the button if a buyer is logged in */}
 
+          {/* Always show the button for the demo */}
           <button
             onClick={handleAddToCart}
-            className="bg-blue-600 p-3 rounded-xl hover:bg-blue-500 text-white transition-colors shadow-lg"
+            className="bg-blue-600 p-3 rounded-xl hover:bg-blue-500 text-white transition-all active:scale-90 shadow-lg"
+            aria-label="Add to cart"
           >
             <ShoppingCart size={20} />
           </button>
-
-          {/* </div> */}
         </div>
       </div>
     </div>

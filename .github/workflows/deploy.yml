@@ -1,0 +1,52 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - master # Verify this matches your branch name (main or master)
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            # 1. Install Node.js 20 if missing (Essential for Next.js)
+            if ! command -v node &> /dev/null; then
+              curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            fi
+
+            # 2. Install PM2 global process manager if missing
+            if ! command -v pm2 &> /dev/null; then
+              sudo npm install -g pm2
+            fi
+
+            # 3. Prepare Project Folder
+            # Only clones if folder doesn't exist, otherwise pulls updates
+            if [ ! -d "/home/ubuntu/vaultcart" ]; then
+              git clone https://github.com/${{ github.repository }}.git /home/ubuntu/vaultcart
+            fi
+
+            # 4. Update Code
+            cd /home/ubuntu/vaultcart
+            git reset --hard origin/master
+            git pull origin master
+
+            # 5. Build and Restart
+            npm install
+            npm run build
+
+            # Restart or Start PM2
+            pm2 restart vaultcart || pm2 start npm --name "vaultcart" -- start
+            pm2 save

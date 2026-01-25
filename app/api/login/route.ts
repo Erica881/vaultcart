@@ -1,58 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
-import sql from "mssql";
-import { executeQuery } from "@/lib/db";
+import { executeProcedure } from "@/lib/db";
 import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "your-secure-secret";
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, role } = await request.json(); // role: 'customer' or 'seller'
-    const userAgent = request.headers.get("vault_user_agent") || "unknown";
-    // Choose the correct stored procedure based on the login type
-    const procedure =
-      role === "seller" ? "Membership.LoginSeller" : "Membership.LoginCustomer";
+    const { email, password } = await request.json();
+    const userAgent = request.headers.get("user-agent") || "unknown";
 
-    const params = [
-      { name: "Email", type: sql.NVarChar(255), value: email },
-      { name: "InputPassword", type: sql.NVarChar(255), value: password },
-      { name: "UserAgent", type: sql.NVarChar(500), value: userAgent }, // Required for your session table
-    ];
+    // Call the Login procedure
+    const result: any = await executeProcedure("Membership_LoginSeller", [
+      email,
+      password,
+      userAgent,
+    ]);
 
-    // Execute the stored procedure defined in your SQL script
-    const result = await executeQuery(
-      `EXEC ${procedure} @Email, @InputPassword, @UserAgent;`,
-      params
-    );
-    const loginData = result.recordset[0];
+    const rows = result[0];
+    const loginData = rows && rows[0]; // This is the first row { Status: 'SUCCESS', ... }
 
-    const webToken = jwt.sign(
-      { sessionToken: loginData.SessionToken },
-      process.env.JWT_SECRET!
-    );
+    console.log("Login Data Received:", loginData);
+
+    // MySQL Result handling
+    // const loginData = result[0] && result[0][0];
 
     if (loginData && loginData.Status === "SUCCESS") {
-      return NextResponse.json(
+      // Create a JWT that holds the sessionToken from the DB
+      // This is what the frontend will send in the 'Authorization' header
+      const webToken = jwt.sign(
         {
-          success: true,
-          // token: loginData.SessionToken, // This GUID is used for RLS
-          token: webToken,
-          userId: loginData.CustomerID || loginData.SellerID,
-          userAgent: userAgent, // Send back to client to store for future requests
+          sessionToken: loginData.SessionToken,
+          sellerId: loginData.SellerID, // <--- ADD THIS HERE
         },
-        {
-          headers: {
-            "Cache-Control": "no-store, max-age=0",
-            // "Content-Type": "application/json",
-          },
-        }
+        JWT_SECRET,
+        { expiresIn: "8h" },
       );
+
+      return NextResponse.json({
+        success: true,
+        token: webToken,
+        sellerId: loginData.SellerID,
+      });
     } else {
       return NextResponse.json(
-        { success: false, message: "Invalid credentials" },
-        { status: 401 }
+        { success: false, message: "Invalid email or password" },
+        { status: 401 },
       );
     }
   } catch (error: any) {
-    console.error("Login Error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Login API Error:", error.message);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }

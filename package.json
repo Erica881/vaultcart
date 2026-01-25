@@ -9,7 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "lucide-react": "^0.562.0",
     "mssql": "^12.2.0",
+    "mysql2": "^3.16.1",
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3"
@@ -18,7 +20,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/mssql": "^9.1.8",
-    "@types/node": "^20",
+    "@types/node": "^20.19.30",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
