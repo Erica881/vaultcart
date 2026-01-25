@@ -21,29 +21,23 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
-            # 1. Install Node.js 20 if missing (Essential for Next.js)
-            if ! command -v node &> /dev/null; then
-              curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-              sudo apt-get install -y nodejs
+            # 1. Trust the directory
+            git config --global --add safe.directory /home/ec2-user/vaultcart
+
+            # 2. Navigate to project
+            # If the folder doesn't have .git, clone it
+            if [ ! -d "/home/ec2-user/vaultcart/.git" ]; then
+              cd /home/ec2-user
+              git clone https://github.com/Erica881/vaultcart.git
             fi
 
-            # 2. Install PM2 global process manager if missing
-            if ! command -v pm2 &> /dev/null; then
-              sudo npm install -g pm2
-            fi
+            cd /home/ec2-user/vaultcart
 
-            # 3. Prepare Project Folder
-            # Only clones if folder doesn't exist, otherwise pulls updates
-            if [ ! -d "/home/ubuntu/vaultcart" ]; then
-              git clone https://github.com/${{ github.repository }}.git /home/ubuntu/vaultcart
-            fi
-
-            # 4. Update Code
-            cd /home/ubuntu/vaultcart
+            # 3. Update Code
+            git fetch origin master
             git reset --hard origin/master
-            git pull origin master
 
-            # 5. Build and Restart
+            # 4. Build and Restart (The .env.local created by User Data stays safe)
             npm install
             npm run build
 
