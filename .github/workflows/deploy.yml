@@ -21,26 +21,28 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
-            # 1. Trust the directory
+            # 1. Global fix for the 'dubious ownership' error
             git config --global --add safe.directory /home/ec2-user/vaultcart
 
-            # 2. Navigate to project
-            # If the folder doesn't have .git, clone it
+            # 2. Smart Clone: If .git doesn't exist, initialize instead of cloning
             if [ ! -d "/home/ec2-user/vaultcart/.git" ]; then
-              cd /home/ec2-user
-              git clone https://github.com/Erica881/vaultcart.git
+              echo "Folder exists but is not a git repo. Initializing..."
+              cd /home/ec2-user/vaultcart
+              git init
+              git remote add origin https://github.com/Erica881/vaultcart.git
+              git fetch origin master
+              git checkout -f master
+            else
+              cd /home/ec2-user/vaultcart
+              git fetch origin master
+              git reset --hard origin/master
             fi
 
-            cd /home/ec2-user/vaultcart
-
-            # 3. Update Code
-            git fetch origin master
-            git reset --hard origin/master
-
-            # 4. Build and Restart (The .env.local created by User Data stays safe)
+            # 3. Standard Build & Restart
             npm install
             npm run build
 
-            # Restart or Start PM2
-            pm2 restart vaultcart || pm2 start npm --name "vaultcart" -- start
+            # 4. Reliable PM2 Start
+            # We use --cwd to ensure PM2 knows exactly where the package.json is
+            pm2 restart vaultcart || pm2 start npm --name "vaultcart" --cwd /home/ec2-user/vaultcart -- start
             pm2 save
