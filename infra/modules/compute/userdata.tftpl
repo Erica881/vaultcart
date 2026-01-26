@@ -13,6 +13,7 @@ cd /home/ec2-user
 # Remove folder if exists to prevent "already exists" error on restart
 rm -rf app 
 git clone https://github.com/Erica881/vaultcart.git app
+sudo chown -R ec2-user:ec2-user /home/ec2-user/app
 cd app
 
 # 3. Create .env file
@@ -29,7 +30,7 @@ EOT
 # 4. Seed Database
 echo "Waiting for RDS connection..."
 # We use the -h endpoint directly from Terraform
-until mariadb -h ${db_host} -u ${db_user} -p'${db_password}' -e "status" > /dev/null 2>&1; do
+until mysql -h ${db_host} -u ${db_user} -p'${db_password}' -e "status" > /dev/null 2>&1; do
   echo "RDS not ready yet..."
   sleep 10
 done
@@ -38,13 +39,12 @@ echo "Executing SQL seed..."
 # Note: Use --force to continue if some "CREATE" statements fail because they exist
 mysql -h ${db_host} -u ${db_user} -p'${db_password}' < /home/ec2-user/app/init.sql
 
+sudo npm install -g pm2
+
 # 5. Build and Start Next.js
 npm install
 npm run build
-npm install -g pm2
-# Next.js needs 'pm2 start npm' for the 'npm start' command
-pm2 delete vaultcart || true
 pm2 start npm --name "vaultcart" -- start
 
 # Fix permissions so ec2-user can manage the files later
-chown -R ec2-user:ec2-user /home/ec2-user/app
+# chown -R ec2-user:ec2-user /home/ec2-user/app

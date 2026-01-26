@@ -89,28 +89,13 @@ resource "aws_instance" "web" {
     db_name     = var.db_name
   })
 
-  connection {
-    type        = "ssh"
-    user        = "ec2-user"
-    # Use path.root to point to the main infra folder
-    private_key = file("${path.root}/labsuser.pem") 
-    host        = self.public_ip
-  }
-
-  # 3. The "Auto-Deploy" Trigger
-  provisioner "remote-exec" {
-    inline = [
-      "echo 'Waiting for user_data to finish basic installs...'",
-      "timeout 300 bash -c 'until [ -f /var/log/user-data.log ]; do sleep 5; done'",
-      "echo 'Next.js Build starting via Terraform...'",
-      "cd /home/ec2-user/app",
-      "npm install",
-      "npm run build",
-      "pm2 delete vaultcart || true",
-      "pm2 start npm --name 'vaultcart' -- start",
-      "pm2 save"
-    ]
-  }
+  # connection {
+  #   type        = "ssh"
+  #   user        = "ec2-user"
+  #   # Use path.root to point to the main infra folder
+  #   private_key = file("${path.root}/labsuser.pem") 
+  #   host        = self.public_ip
+  # }
 
   # Ensure you allow Port 3000 or Port 80 in your Security Group
   tags = {
