@@ -98,3 +98,72 @@ WHERE s.is_active = 1;
 
 -- Seed initial data
 CALL Membership_RegisterSeller('John Doe', 'test@exp.com', '5555-4444-3333-2222', '111');
+
+DELIMITER //
+
+-- ADD PRODUCT
+CREATE PROCEDURE Catalog_usp_AddProductSecurely(
+    IN p_SellerID INT, IN p_Name VARCHAR(255), 
+    IN p_Price DECIMAL(10,2), IN p_Stock INT, IN p_SessionToken VARCHAR(64)
+)
+BEGIN
+    IF EXISTS (SELECT 1 FROM Security_SellerSessions WHERE session_token = p_SessionToken AND is_active = 1 AND seller_id = p_SellerID) THEN
+        INSERT INTO Catalog_Products (seller_id, name, price, stock_qty, status)
+        VALUES (p_SellerID, p_Name, p_Price, p_Stock, 'available');
+        SELECT LAST_INSERT_ID() AS NewProductID;
+    ELSE
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Security Violation: Invalid Session.';
+    END IF;
+END //
+
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE usp_UpdateProductSecurely(
+    IN p_ProductID INT, IN p_ProductName VARCHAR(200), 
+    IN p_Price DECIMAL(18,2), IN p_Stock INT, IN p_SessionToken CHAR(36)
+)
+BEGIN
+    UPDATE Catalog_Products P
+    INNER JOIN Security_SellerSessions S ON P.seller_id = S.seller_id
+    SET P.name = p_ProductName, P.price = p_Price, P.stock_qty = p_Stock
+    WHERE P.id = p_ProductID AND S.session_token = p_SessionToken AND S.is_active = 1;
+    
+    IF ROW_COUNT() = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Unauthorized or Product Not Found.';
+    END IF;
+END //
+
+CREATE PROCEDURE usp_DeleteProductSecurely(IN p_ProductID INT, IN p_SessionToken CHAR(36))
+BEGIN
+    DELETE P FROM Catalog_Products P
+    INNER JOIN Security_SellerSessions S ON P.seller_id = S.seller_id
+    WHERE P.id = p_ProductID AND S.session_token = p_SessionToken AND S.is_active = 1;
+
+    IF ROW_COUNT() = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Unauthorized or Product Not Found.';
+    END IF;
+END //
+DELIMITER ;
+
+DELIMITER $$
+
+CREATE PROCEDURE usp_LogoutSeller(
+    IN p_SessionToken VARCHAR(64)
+)
+BEGIN
+    -- 1. Check if the session exists and is active
+    IF EXISTS (SELECT 1 FROM Security_SellerSessions WHERE session_token = p_SessionToken AND is_active = 1) THEN
+        -- 2. Deactivate the session
+        UPDATE Security_SellerSessions 
+        SET is_active = 0 
+        WHERE session_token = p_SessionToken;
+
+        SELECT 'SUCCESS' AS Status, 'Session logged out' AS Message;
+    ELSE
+        -- 3. If token is invalid or already inactive
+        SELECT 'FAILED' AS Status, 'Invalid or expired session' AS Message;
+    END IF;
+END $$
+
+DELIMITER ;

@@ -39,6 +39,8 @@ NEXT_PUBLIC_API_URL=http://localhost:3000
 EOT
 
 
+
+
 # 5. Build and Start Next.js
 npm install
 npm run build
@@ -46,16 +48,17 @@ sudo npm install -g pm2
 pm2 start npm --name "vaultcart" -- start
 
 # 4. Seed Database
+source .env
 echo "Waiting for RDS connection..."
 # We use the -h endpoint directly from Terraform
-until mysql -h ${db_host} -u ${db_user} -p'${db_password}' -e "status" > /dev/null 2>&1; do
+until mariadb -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME -e "status" > /dev/null 2>&1; do
   echo "RDS not ready yet..."
   sleep 10
 done
 
 echo "Executing SQL seed..."
 # Note: Use --force to continue if some "CREATE" statements fail because they exist
-mysql -h ${db_host} -u ${db_user} -p'${db_password}' < /home/ec2-user/app/init.sql
+mariadb -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < /home/ec2-user/app/app/init.sql
 
 
 # Fix permissions so ec2-user can manage the files later
