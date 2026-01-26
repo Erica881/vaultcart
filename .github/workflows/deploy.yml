@@ -1,48 +1,48 @@
-name: Deploy to EC2
+# name: Deploy to EC2
 
-on:
-  push:
-    branches:
-      - master # Verify this matches your branch name (main or master)
+# on:
+#   push:
+#     branches:
+#       - master # Verify this matches your branch name (main or master)
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v3
 
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          script: |
-            # 1. Global fix for the 'dubious ownership' error
-            git config --global --add safe.directory /home/ec2-user/vaultcart
+#       - name: Deploy to EC2
+#         uses: appleboy/ssh-action@v1.0.3
+#         with:
+#           host: ${{ secrets.EC2_HOST }}
+#           username: ${{ secrets.EC2_USERNAME }}
+#           key: ${{ secrets.EC2_SSH_KEY }}
+#           port: 22
+#           script: |
+#             # 1. Global fix for the 'dubious ownership' error
+#             git config --global --add safe.directory /home/ec2-user/vaultcart
 
-            # 2. Smart Clone: If .git doesn't exist, initialize instead of cloning
-            if [ ! -d "/home/ec2-user/vaultcart/.git" ]; then
-              echo "Folder exists but is not a git repo. Initializing..."
-              cd /home/ec2-user/vaultcart
-              git init
-              git remote add origin https://github.com/Erica881/vaultcart.git
-              git fetch origin master
-              git checkout -f master
-            else
-              cd /home/ec2-user/vaultcart
-              git fetch origin master
-              git reset --hard origin/master
-            fi
+#             # 2. Smart Clone: If .git doesn't exist, initialize instead of cloning
+#             if [ ! -d "/home/ec2-user/vaultcart/.git" ]; then
+#               echo "Folder exists but is not a git repo. Initializing..."
+#               cd /home/ec2-user/vaultcart
+#               git init
+#               git remote add origin https://github.com/Erica881/vaultcart.git
+#               git fetch origin master
+#               git checkout -f master
+#             else
+#               cd /home/ec2-user/vaultcart
+#               git fetch origin master
+#               git reset --hard origin/master
+#             fi
 
-            # 3. Standard Build & Restart
-            npm install
-            npm run build
+#             # 3. Standard Build & Restart
+#             npm install
+#             npm run build
 
-            # 4. Reliable PM2 Start
-            # We use --cwd to ensure PM2 knows exactly where the package.json is
-            pm2 restart vaultcart || pm2 start npm --name "vaultcart" --cwd /home/ec2-user/vaultcart -- start
-            pm2 save
+#             # 4. Reliable PM2 Start
+#             # We use --cwd to ensure PM2 knows exactly where the package.json is
+#             pm2 restart vaultcart || pm2 start npm --name "vaultcart" --cwd /home/ec2-user/vaultcart -- start
+#             pm2 save
