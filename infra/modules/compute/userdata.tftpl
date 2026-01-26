@@ -1,7 +1,5 @@
 #!/bin/bash
-# Send output to log for debugging
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
-
 echo "Starting deployment process..."
 
 # 1. Install Node.js, Git, and MariaDB (MySQL Client)
@@ -10,23 +8,16 @@ dnf install -y git mariadb105
 
 # Install Node.js via NVM
 cd /home/ec2-user
-# curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 curl -sL https://rpm.nodesource.com/setup_20.x | bash -
-# source ~/.bashrc
-# nvm install --lts
 dnf install -y nodejs
-# Install the required version
 nvm install 20
 nvm alias default 20
 nvm use 20
 
 # 2. Clone Repo
-# Remove folder if exists to prevent "already exists" error on restart
 rm -rf app 
 git clone https://github.com/Erica881/vaultcart.git app
-# sudo chown -R ec2-user:ec2-user /home/ec2-user/app
 cd app
-
 # 3. Create .env file
 cat <<EOT > .env
 JWT_SECRET=${jwt_secret}
@@ -38,9 +29,6 @@ PORT=3000
 NEXT_PUBLIC_API_URL=http://localhost:3000
 EOT
 
-
-
-
 # 5. Build and Start Next.js
 npm install
 npm run build
@@ -50,16 +38,12 @@ pm2 start npm --name "vaultcart" -- start
 # 4. Seed Database
 source .env
 echo "Waiting for RDS connection..."
-# We use the -h endpoint directly from Terraform
 until mariadb -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME -e "status" > /dev/null 2>&1; do
   echo "RDS not ready yet..."
   sleep 10
 done
 
 echo "Executing SQL seed..."
-# Note: Use --force to continue if some "CREATE" statements fail because they exist
 mariadb -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < /home/ec2-user/app/app/init.sql
 
-
-# Fix permissions so ec2-user can manage the files later
 chown -R ec2-user:ec2-user /home/ec2-user/app

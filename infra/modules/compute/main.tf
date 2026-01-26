@@ -59,27 +59,6 @@ resource "aws_instance" "web" {
   subnet_id              = var.target_subnet_id
   vpc_security_group_ids = [aws_security_group.web_sg.id]
 
-  # REQUIREMENT: Boot as root/user data
-# user_data = <<-EOF
-#     #!/bin/bash
-#     # 1. Install basics
-#     dnf update -y
-#     dnf install -y git
-#     curl -sL https://rpm.nodesource.com/setup_20.x | bash -
-#     dnf install -y nodejs
-#     npm install -g pm2
-
-#     # 2. Setup the folder and Env variables (Terraform knows the DB endpoint)
-#     mkdir -p /home/ec2-user/vaultcart
-#     cat <<EOT > /home/ec2-user/vaultcart/.env.local
-#     DATABASE_URL="mysql://admin:rdsPassword123!@${var.db_endpoint}:3306/vaultcart"
-#     NEXT_PUBLIC_API_URL="http://localhost:3000"
-#     EOT
-
-#     # 3. Fix permissions so ec2-user owns the folder created by root
-#     chown -R ec2-user:ec2-user /home/ec2-user/vaultcart
-#   EOF
-
 # This links your .tftpl file and injects the variables
   user_data = templatefile("${path.module}/userdata.tftpl", {
     jwt_secret  = var.jwt_secret
@@ -89,15 +68,6 @@ resource "aws_instance" "web" {
     db_name     = var.db_name
   })
 
-  # connection {
-  #   type        = "ssh"
-  #   user        = "ec2-user"
-  #   # Use path.root to point to the main infra folder
-  #   private_key = file("${path.root}/labsuser.pem") 
-  #   host        = self.public_ip
-  # }
-
-  # Ensure you allow Port 3000 or Port 80 in your Security Group
   tags = {
     Name = "${var.project_name}-web-server" 
   }
