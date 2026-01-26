@@ -1,0 +1,50 @@
+#!/bin/bash
+# Send output to log for debugging
+exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+
+echo "Starting deployment process..."
+
+# 1. Install Node.js, Git, and MariaDB (MySQL Client)
+dnf update -y
+dnf install -y nodejs git mariadb105
+
+# 2. Clone Repo
+cd /home/ec2-user
+# Remove folder if exists to prevent "already exists" error on restart
+rm -rf app 
+git clone https://github.com/Erica881/vaultcart.git app
+cd app
+
+# 3. Create .env file
+cat <<EOT > .env
+JWT_SECRET=${jwt_secret}
+DB_HOST=${db_host}
+DB_USER=${db_user}
+DB_PASSWORD=${db_password}
+DB_NAME=${db_name}
+PORT=3000
+NEXT_PUBLIC_API_URL=http://localhost:3000
+EOT
+
+# 4. Seed Database
+echo "Waiting for RDS connection..."
+# We use the -h endpoint directly from Terraform
+until mariadb -h ${db_host} -u ${db_user} -p'${db_password}' -e "status" > /dev/null 2>&1; do
+  echo "RDS not ready yet..."
+  sleep 10
+done
+
+echo "Executing SQL seed..."
+# Note: Use --force to continue if some "CREATE" statements fail because they exist
+mysql -h ${db_host} -u ${db_user} -p'${db_password}' < /home/ec2-user/app/init.sql
+
+# 5. Build and Start Next.js
+npm install
+npm run build
+npm install -g pm2
+# Next.js needs 'pm2 start npm' for the 'npm start' command
+pm2 delete vaultcart || true
+pm2 start npm --name "vaultcart" -- start
+
+# Fix permissions so ec2-user can manage the files later
+chown -R ec2-user:ec2-user /home/ec2-user/app

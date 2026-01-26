@@ -31,6 +31,10 @@ module "compute" {
   key_name             = var.key_name
   iam_instance_profile = var.iam_instance_profile
   db_endpoint          = module.database.db_endpoint
+  # Link secrets from Root variables
+  db_password          = var.db_password 
+  jwt_secret           = var.jwt_secret
+  db_user              = var.db_user
 }
 
 # --- NEW: Database Module Block ---
@@ -46,7 +50,7 @@ module "database" {
   web_sg_id          = module.compute.web_sg_id
   
   # Credentials
-  db_username        = "admin"
-  db_password        = "rdsPassword123!"
+  db_username        = var.db_user
+  db_password        = var.db_password
 }
 

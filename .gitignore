@@ -55,3 +55,5 @@ crash.log
 
 *.tfstate.backup
 *.tfstate.*.backup
+
+terraform.tfvars
