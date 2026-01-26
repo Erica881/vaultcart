@@ -5,7 +5,7 @@ variable "public_subnets" { type = list(string) }
 variable "private_subnets" { type = list(string) }
 variable "availability_zones" { type = list(string) }
 variable "ami_id" { default = "ami-0532be01f26a3de55" }
-variable "instance_type" { default = "t2.micro" }
+variable "instance_type" { default = "t3.small" }
 variable "key_name" { default = "vockey" }
 variable "iam_instance_profile" { default = "LabInstanceProfile" }
 variable "db_password" {}
