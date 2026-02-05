@@ -78,3 +78,8 @@ resource "aws_route_table_association" "private" {
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private.id
 }
+resource "aws_lb_target_group_attachment" "web_attachment" {
+  target_group_arn = var.lb_target_group_arn # We will pass this variable in Step 4
+  target_id        = aws_instance.web_app.id # Make sure 'web_app' matches your instance resource name
+  port             = 3000
+}

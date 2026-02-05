@@ -35,6 +35,7 @@ module "compute" {
   db_password          = var.db_password 
   jwt_secret           = var.jwt_secret
   db_user              = var.db_user
+  lb_target_group_arn = module.networking.target_group_arn
 }
 
 # --- NEW: Database Module Block ---
