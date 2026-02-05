@@ -5,7 +5,7 @@ Resources:
     Type: "AWS::S3::Bucket"
     Properties:
       # REMEMBER: This name must be unique globally!
-      BucketName: vaultcart-s3-unique-cloudformation-12322
+      BucketName: vaultcart-s3-unique-cloudformation-12323
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true

@@ -46,4 +46,42 @@ done
 echo "Executing SQL seed..."
 mariadb -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < /home/ec2-user/app/app/init.sql
 
+# 1. Install OpenSSL and Nginx
+sudo yum install -y nginx openssl
+
+# 2. Create a directory for certificates
+sudo mkdir -p /etc/nginx/ssl
+
+# 3. Generate a Self-Signed Key and Certificate
+# -nodes: no password on the key
+# -days 365: valid for one year
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout /etc/nginx/ssl/vaultcart.key \
+  -out /etc/nginx/ssl/vaultcart.crt \
+  -subj "/C=US/ST=State/L=City/O=Organization/CN=vaultcart.local"
+
+# 4. Configure Nginx to use SSL
+sudo tee /etc/nginx/conf.d/vaultcart.conf > /dev/null <<EOT
+server {
+    listen 80;
+    server_name _;
+    return 301 https://\$host\$request_uri; # Redirect HTTP to HTTPS
+}
+server {
+    listen 443 ssl;
+    server_name _;
+
+    ssl_certificate /etc/nginx/ssl/vaultcart.crt;
+    ssl_certificate_key /etc/nginx/ssl/vaultcart.key;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOT
+sudo systemctl restart nginx
 chown -R ec2-user:ec2-user /home/ec2-user/app

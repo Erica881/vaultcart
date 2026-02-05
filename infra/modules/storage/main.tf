@@ -32,11 +32,11 @@
 # }
 
 # check the s3 name in aws console, it must done upload the cloudformation first, to run this
-data "aws_s3_bucket" "existing_bucket" {
-  bucket = "vaultcart-s3-unique-cloudformation-12322"
-}
+# data "aws_s3_bucket" "existing_bucket" {
+#   bucket = "vaultcart-s3-unique-cloudformation-12323"
+# }
 
-# Now you can still use the bucket ID for your EC2 permissions
-output "s3_bucket_id" {
-  value = data.aws_s3_bucket.existing_bucket.id
-}
+# # Now you can still use the bucket ID for your EC2 permissions
+# output "s3_bucket_id" {
+#   value = data.aws_s3_bucket.existing_bucket.id
+# }
