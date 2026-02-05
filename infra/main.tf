@@ -54,3 +54,6 @@ module "database" {
   db_password        = var.db_password
 }
 
+module "storage" {
+  source             = "./modules/storage"
+}

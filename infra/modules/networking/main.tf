@@ -7,7 +7,7 @@ resource "aws_vpc" "this" {
 # 2. Explicitly request the IPv6 Block
 resource "aws_vpc_ipv6_cidr_block_association" "this" {
   vpc_id                       = aws_vpc.this.id
-  assign_generated_ipv6_cidr_block = true
+  assign_generated_ipv6_cidr_block = false
 }
 
 resource "aws_subnet" "public" {

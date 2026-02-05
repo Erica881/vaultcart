@@ -47,3 +47,8 @@ echo "Executing SQL seed..."
 mariadb -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < /home/ec2-user/app/app/init.sql
 
 chown -R ec2-user:ec2-user /home/ec2-user/app
+
+# Create a dummy file to demonstrate S3 access
+echo "This is a secure backup" > backup.txt
+# Upload it using the EC2's IAM Role (LabRole)
+# aws s3 mv backup.txt s3://vaultcart-s3-a3a6dc24/
