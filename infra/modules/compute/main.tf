@@ -21,15 +21,6 @@ resource "aws_security_group" "web_sg" {
     ipv6_cidr_blocks = ["::/0"] # Added IPv6
   }
 
-  # SSH (Optional: Usually kept to IPv4 for security, but added for completeness)
-  ingress {
-    from_port        = 22
-    to_port          = 22
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"] 
-  }
-
   # Next.js Port
   ingress {
     from_port        = 3000
