@@ -24,3 +24,8 @@ variable "db_name" {
   type    = string
   default = "vaultcart"
 }
+
+variable "lb_target_group_arn" {
+  description = "The ARN of the load balancer target group to attach the instance to"
+  type        = string
+}

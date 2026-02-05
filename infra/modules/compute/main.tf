@@ -63,3 +63,9 @@ resource "aws_instance" "web" {
     Name = "${var.project_name}-web-server" 
   }
 }
+
+resource "aws_lb_target_group_attachment" "web_attachment" {
+  target_group_arn = var.lb_target_group_arn
+  target_id        = aws_instance.web.id
+  port             = 3000
+}
